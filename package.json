@@ -1,0 +1,11 @@
+{
+  "name": "tsoptimize",
+  "version": "0.0.1",
+  "scripts": {
+    "test": "node_modules/.bin/mocha src/test"
+  },
+  "dependencies": {
+    "mocha": "2.5.3",
+    "typescript": "1.8.10"
+  }
+}
