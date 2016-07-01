@@ -175,12 +175,12 @@ export function emit(program: ts.Program, mode: Emit): string {
     needsSemicolon = false;
   }
 
-  function emitCommaSeparated(expressions: ts.Expression[]): void {
+  function emitCommaSeparated(nodes: ts.Node[]): void {
     let isFirst = true;
-    for (let expression of expressions) {
+    for (let node of nodes) {
       if (isFirst) isFirst = false;
       else out += ',' + space;
-      emit(expression, Level.Comma);
+      emit(node, Level.Comma);
     }
   }
 
@@ -201,6 +201,23 @@ export function emit(program: ts.Program, mode: Emit): string {
 
   function emit(node: ts.Node, level: Level): void {
     switch (node.kind) {
+      case ts.SyntaxKind.ComputedPropertyName: {
+        let expression = (node as ts.ComputedPropertyName).expression;
+        out += '[';
+        emit(expression, Level.Lowest);
+        out += ']';
+        break;
+      }
+
+      case ts.SyntaxKind.PropertyAssignment: {
+        let name = (node as ts.PropertyAssignment).name;
+        let initializer = (node as ts.PropertyAssignment).initializer;
+        emit(name, Level.Comma);
+        out += ':' + space;
+        emit(initializer, Level.Comma);
+        break;
+      }
+
       case ts.SyntaxKind.SourceFile: {
         let statements = (node as ts.SourceFile).statements;
         for (let statement of statements) {
@@ -308,6 +325,46 @@ export function emit(program: ts.Program, mode: Emit): string {
         break;
       }
 
+      case ts.SyntaxKind.ForInStatement: {
+        let initializer = (node as ts.ForInStatement).initializer;
+        let expression = (node as ts.ForInStatement).expression;
+        let statement = (node as ts.ForInStatement).statement;
+        out += indent;
+        emitSpaceBeforeIdentifier();
+        out += 'for' + space + '(';
+        if (initializer.kind == ts.SyntaxKind.VariableDeclarationList) {
+          emitVariableDeclarations((initializer as ts.VariableDeclarationList).declarations);
+        } else {
+          emit(initializer, Level.Lowest);
+        }
+        emitSpaceBeforeIdentifier();
+        out += 'in' + space;
+        emit(expression, Level.Lowest);
+        out += ')';
+        emitBlockInsideStatement(statement);
+        break;
+      }
+
+      case ts.SyntaxKind.ForOfStatement: {
+        let initializer = (node as ts.ForOfStatement).initializer;
+        let expression = (node as ts.ForOfStatement).expression;
+        let statement = (node as ts.ForOfStatement).statement;
+        out += indent;
+        emitSpaceBeforeIdentifier();
+        out += 'for' + space + '(';
+        if (initializer.kind == ts.SyntaxKind.VariableDeclarationList) {
+          emitVariableDeclarations((initializer as ts.VariableDeclarationList).declarations);
+        } else {
+          emit(initializer, Level.Lowest);
+        }
+        emitSpaceBeforeIdentifier();
+        out += 'of' + space;
+        emit(expression, Level.Lowest);
+        out += ')';
+        emitBlockInsideStatement(statement);
+        break;
+      }
+
       case ts.SyntaxKind.FunctionDeclaration: {
         if (node.modifiers && node.modifiers.flags & ts.NodeFlags.Ambient) {
           return;
@@ -381,6 +438,10 @@ export function emit(program: ts.Program, mode: Emit): string {
         break;
       }
 
+      case ts.SyntaxKind.InterfaceDeclaration: {
+        break;
+      }
+
       case ts.SyntaxKind.LabeledStatement: {
         let label = (node as ts.LabeledStatement).label;
         let statement = (node as ts.LabeledStatement).statement;
@@ -415,6 +476,10 @@ export function emit(program: ts.Program, mode: Emit): string {
         out += 'throw' + space;
         emit(expression, Level.Lowest);
         emitSemicolonAfterStatement();
+        break;
+      }
+
+      case ts.SyntaxKind.TypeAliasDeclaration: {
         break;
       }
 
@@ -465,6 +530,11 @@ export function emit(program: ts.Program, mode: Emit): string {
         break;
       }
 
+      case ts.SyntaxKind.AsExpression: {
+        emit((node as ts.AsExpression).expression, level);
+        break;
+      }
+
       case ts.SyntaxKind.BinaryExpression: {
         let operatorToken = (node as ts.BinaryExpression).operatorToken;
         let left = (node as ts.BinaryExpression).left;
@@ -482,6 +552,49 @@ export function emit(program: ts.Program, mode: Emit): string {
         out += space;
         emit(right, operatorLevel - +biasRight);
         if (wrap) out += ')';
+        break;
+      }
+
+      case ts.SyntaxKind.CallExpression: {
+        let expression = (node as ts.CallExpression).expression;
+        let args = (node as ts.CallExpression).arguments;
+        emit(expression, Level.Postfix);
+        out += '(';
+        emitCommaSeparated(args);
+        out += ')';
+        break;
+      }
+
+      case ts.SyntaxKind.ConditionalExpression: {
+        let condition = (node as ts.ConditionalExpression).condition;
+        let whenTrue = (node as ts.ConditionalExpression).whenTrue;
+        let whenFalse = (node as ts.ConditionalExpression).whenFalse;
+        let wrap = level >= Level.Conditional;
+        if (wrap) out += '(';
+        emit(condition, Level.Conditional);
+        out += space + '?' + space;
+        emit(whenTrue, Level.Conditional - 1);
+        out += space + ':' + space;
+        emit(whenFalse, Level.Conditional - 1);
+        if (wrap) out += ')';
+        break;
+      }
+
+      case ts.SyntaxKind.DeleteExpression: {
+        let expression = (node as ts.DeleteExpression).expression;
+        emitSpaceBeforeIdentifier();
+        out += 'delete';
+        emit(expression, Level.Prefix);
+        break;
+      }
+
+      case ts.SyntaxKind.ElementAccessExpression: {
+        let expression = (node as ts.ElementAccessExpression).expression;
+        let argumentExpression = (node as ts.ElementAccessExpression).argumentExpression;
+        emit(expression, Level.Member);
+        out += '[';
+        emit(argumentExpression, Level.Lowest);
+        out += ']';
         break;
       }
 
@@ -525,11 +638,37 @@ export function emit(program: ts.Program, mode: Emit): string {
         break;
       }
 
+      case ts.SyntaxKind.ObjectLiteralExpression: {
+        let properties = (node as ts.ObjectLiteralExpression).properties;
+        out += '{';
+        emitCommaSeparated(properties);
+        out += '}';
+        break;
+      }
+
+      case ts.SyntaxKind.OmittedExpression: {
+        break;
+      }
+
+      case ts.SyntaxKind.ParenthesizedExpression: {
+        emit((node as ts.ParenthesizedExpression).expression, level);
+        break;
+      }
+
       case ts.SyntaxKind.PrefixUnaryExpression: {
         let operator = (node as ts.PrefixUnaryExpression).operator;
         let operand = (node as ts.PrefixUnaryExpression).operand;
         out += ts.tokenToString(operator);
         emit(operand, Level.Prefix);
+        break;
+      }
+
+      case ts.SyntaxKind.PropertyAccessExpression: {
+        let expression = (node as ts.PropertyAccessExpression).expression;
+        let name = (node as ts.PropertyAccessExpression).name;
+        emit(expression, Level.Member);
+        out += '.';
+        emit(name, Level.Lowest);
         break;
       }
 
@@ -556,6 +695,27 @@ export function emit(program: ts.Program, mode: Emit): string {
       case ts.SyntaxKind.TrueKeyword: {
         emitSpaceBeforeIdentifier();
         out += 'true';
+        break;
+      }
+
+      case ts.SyntaxKind.TypeOfExpression: {
+        let expression = (node as ts.TypeOfExpression).expression;
+        emitSpaceBeforeIdentifier();
+        out += 'typeof';
+        emit(expression, Level.Prefix);
+        break;
+      }
+
+      case ts.SyntaxKind.VoidExpression: {
+        let expression = (node as ts.VoidExpression).expression;
+        emitSpaceBeforeIdentifier();
+        out += 'void';
+        emit(expression, Level.Prefix);
+        break;
+      }
+
+      default: {
+        console.warn(`Unexpected node kind '${ts.SyntaxKind[node.kind]}'`);
         break;
       }
     }
