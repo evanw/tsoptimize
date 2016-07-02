@@ -127,6 +127,10 @@ let templateEscapes: {[c: string]: string} = {
   '$': '\\$',
 };
 
+function reduceNumber(text: string): string {
+  return text.replace(/^(-?)0\./, '$1.').replace('+', '');
+}
+
 export function emit(program: ts.Program, mode: Emit): string {
   let minify = mode == Emit.Minified;
   let needsSemicolon = false;
@@ -711,12 +715,16 @@ export function emit(program: ts.Program, mode: Emit): string {
 
         if (minify) {
           let value = +text;
-          let normal = value.toString();
-          let exponent = value.toExponential();
+          let normal = reduceNumber(value.toString());
+          let exponent = reduceNumber(value.toExponential());
           text = normal.length <= exponent.length ? normal : exponent;
         }
 
+        let wrap = text[0] === '-' && level >= Level.Prefix;
+        if (wrap) out += '(';
         out += text;
+        if (wrap) out += ')';
+        else if (level >= Level.Member && !/[.eE]/.test(text)) out += ' ';
         break;
       }
 
@@ -740,8 +748,11 @@ export function emit(program: ts.Program, mode: Emit): string {
       case ts.SyntaxKind.PrefixUnaryExpression: {
         let operator = (node as ts.PrefixUnaryExpression).operator;
         let operand = (node as ts.PrefixUnaryExpression).operand;
+        let wrap = level >= Level.Prefix;
+        if (wrap) out += '(';
         out += ts.tokenToString(operator);
-        emit(operand, Level.Prefix);
+        emit(operand, Level.Prefix - 1);
+        if (wrap) out += ')';
         break;
       }
 
@@ -757,8 +768,11 @@ export function emit(program: ts.Program, mode: Emit): string {
       case ts.SyntaxKind.PostfixUnaryExpression: {
         let operand = (node as ts.PostfixUnaryExpression).operand;
         let operator = (node as ts.PostfixUnaryExpression).operator;
-        emit(operand, Level.Postfix);
+        let wrap = level >= Level.Postfix;
+        if (wrap) out += '(';
+        emit(operand, Level.Postfix - 1);
         out += ts.tokenToString(operator);
+        if (wrap) out += ')';
         break;
       }
 

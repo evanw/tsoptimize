@@ -108,7 +108,7 @@ z:
 }
 `,
 `function test(a,b){
-[false,true,null,this,0,1.5,1e+10,"abc\\n","abc\\n",\`abc\\n\`,\`\${a}\${b}c\\n\`,this\`abc\\n\`,/abc\\n/g];
+[false,true,null,this,0,1.5,1e10,"abc\\n","abc\\n",\`abc\\n\`,\`\${a}\${b}c\\n\`,this\`abc\\n\`,/abc\\n/g];
 [()=>{},a=>a,(a,b)=>{throw a+b}];
 do break;while(true);
 do continue;while(false);
@@ -135,5 +135,19 @@ for(var y of c);
 [a+b,a-b,a*b,a/b,a%b,a**b,a&b,a|b,a^b,a<<b,a>>b];
 [a=b,a+=b,a-=b,a*=b,a/=b,a%=b,a**=b,a&=b,a|=b,a^=b,a<<=b,a>>=b]
 }`.replace(/\n/g, '')
+  );
+});
+
+it('numbers', function() {
+  this.timeout(0);
+
+  check(
+    '[0..toString, 0.5.toString, -0.5.toString, (-0.5).toString, 10.5.toString];' +
+    '[1e100.toString, -1e100.toString, (-1e100).toString, 1.5e100.toString, -1.5e100.toString, (-1.5e100).toString];',
+    '',
+    '[0 .toString, 0.5.toString, -0.5.toString, (-0.5).toString, 10.5.toString];\n' +
+    '[1e+100.toString, -1e+100.toString, (-1e+100).toString, 1.5e+100.toString, -1.5e+100.toString, (-1.5e+100).toString];',
+    '[0 .toString,.5.toString,-.5.toString,(-.5).toString,10.5.toString];' +
+    '[1e100.toString,-1e100.toString,(-1e100).toString,1.5e100.toString,-1.5e100.toString,(-1.5e100).toString];'
   );
 });
