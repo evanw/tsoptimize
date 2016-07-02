@@ -2,7 +2,7 @@
   "name": "tsoptimize",
   "version": "0.0.1",
   "scripts": {
-    "test": "node_modules/.bin/mocha src/test"
+    "test": "node_modules/.bin/mocha"
   },
   "dependencies": {
     "mocha": "2.5.3",

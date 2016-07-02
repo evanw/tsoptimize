@@ -1,5 +1,6 @@
-import * as ts from 'typescript';
+import './test.emitter';
 import * as fs from 'fs';
+import * as ts from 'typescript';
 
 var lib_d_ts: string = null;
 

@@ -1,4 +1,9 @@
 import * as ts from 'typescript';
+import * as mangler from './mangler';
+
+let NodeFlags = ts.NodeFlags;
+let SyntaxKind = ts.SyntaxKind;
+type SyntaxKind = ts.SyntaxKind;
 
 export const enum Emit {
   Normal,
@@ -30,84 +35,84 @@ export const enum Level {
 }
 
 let binaryOperatorLevel: {[kind: number]: Level} = {
-  [ts.SyntaxKind.CommaToken]: Level.Comma,
+  [SyntaxKind.CommaToken]: Level.Comma,
 
-  [ts.SyntaxKind.AmpersandEqualsToken]: Level.Assignment,
-  [ts.SyntaxKind.AsteriskAsteriskEqualsToken]: Level.Assignment,
-  [ts.SyntaxKind.AsteriskEqualsToken]: Level.Assignment,
-  [ts.SyntaxKind.BarEqualsToken]: Level.Assignment,
-  [ts.SyntaxKind.CaretEqualsToken]: Level.Assignment,
-  [ts.SyntaxKind.EqualsToken]: Level.Assignment,
-  [ts.SyntaxKind.GreaterThanGreaterThanEqualsToken]: Level.Assignment,
-  [ts.SyntaxKind.GreaterThanGreaterThanGreaterThanEqualsToken]: Level.Assignment,
-  [ts.SyntaxKind.LessThanLessThanEqualsToken]: Level.Assignment,
-  [ts.SyntaxKind.MinusEqualsToken]: Level.Assignment,
-  [ts.SyntaxKind.PercentEqualsToken]: Level.Assignment,
-  [ts.SyntaxKind.PlusEqualsToken]: Level.Assignment,
-  [ts.SyntaxKind.SlashEqualsToken]: Level.Assignment,
+  [SyntaxKind.AmpersandEqualsToken]: Level.Assignment,
+  [SyntaxKind.AsteriskAsteriskEqualsToken]: Level.Assignment,
+  [SyntaxKind.AsteriskEqualsToken]: Level.Assignment,
+  [SyntaxKind.BarEqualsToken]: Level.Assignment,
+  [SyntaxKind.CaretEqualsToken]: Level.Assignment,
+  [SyntaxKind.EqualsToken]: Level.Assignment,
+  [SyntaxKind.GreaterThanGreaterThanEqualsToken]: Level.Assignment,
+  [SyntaxKind.GreaterThanGreaterThanGreaterThanEqualsToken]: Level.Assignment,
+  [SyntaxKind.LessThanLessThanEqualsToken]: Level.Assignment,
+  [SyntaxKind.MinusEqualsToken]: Level.Assignment,
+  [SyntaxKind.PercentEqualsToken]: Level.Assignment,
+  [SyntaxKind.PlusEqualsToken]: Level.Assignment,
+  [SyntaxKind.SlashEqualsToken]: Level.Assignment,
 
-  [ts.SyntaxKind.BarBarToken]: Level.LogicalOr,
-  [ts.SyntaxKind.AmpersandAmpersandToken]: Level.LogicalAnd,
-  [ts.SyntaxKind.BarToken]: Level.BitwiseOr,
-  [ts.SyntaxKind.CaretToken]: Level.BitwiseXor,
-  [ts.SyntaxKind.AmpersandToken]: Level.BitwiseAnd,
+  [SyntaxKind.BarBarToken]: Level.LogicalOr,
+  [SyntaxKind.AmpersandAmpersandToken]: Level.LogicalAnd,
+  [SyntaxKind.BarToken]: Level.BitwiseOr,
+  [SyntaxKind.CaretToken]: Level.BitwiseXor,
+  [SyntaxKind.AmpersandToken]: Level.BitwiseAnd,
 
-  [ts.SyntaxKind.EqualsEqualsToken]: Level.Equality,
-  [ts.SyntaxKind.ExclamationEqualsToken]: Level.Equality,
-  [ts.SyntaxKind.EqualsEqualsEqualsToken]: Level.Equality,
-  [ts.SyntaxKind.ExclamationEqualsEqualsToken]: Level.Equality,
+  [SyntaxKind.EqualsEqualsToken]: Level.Equality,
+  [SyntaxKind.ExclamationEqualsToken]: Level.Equality,
+  [SyntaxKind.EqualsEqualsEqualsToken]: Level.Equality,
+  [SyntaxKind.ExclamationEqualsEqualsToken]: Level.Equality,
 
-  [ts.SyntaxKind.LessThanToken]: Level.Compare,
-  [ts.SyntaxKind.GreaterThanToken]: Level.Compare,
-  [ts.SyntaxKind.LessThanEqualsToken]: Level.Compare,
-  [ts.SyntaxKind.GreaterThanEqualsToken]: Level.Compare,
+  [SyntaxKind.LessThanToken]: Level.Compare,
+  [SyntaxKind.GreaterThanToken]: Level.Compare,
+  [SyntaxKind.LessThanEqualsToken]: Level.Compare,
+  [SyntaxKind.GreaterThanEqualsToken]: Level.Compare,
 
-  [ts.SyntaxKind.LessThanLessThanToken]: Level.Shift,
-  [ts.SyntaxKind.GreaterThanGreaterThanToken]: Level.Shift,
-  [ts.SyntaxKind.GreaterThanGreaterThanGreaterThanToken]: Level.Shift,
+  [SyntaxKind.LessThanLessThanToken]: Level.Shift,
+  [SyntaxKind.GreaterThanGreaterThanToken]: Level.Shift,
+  [SyntaxKind.GreaterThanGreaterThanGreaterThanToken]: Level.Shift,
 
-  [ts.SyntaxKind.PlusToken]: Level.Add,
-  [ts.SyntaxKind.MinusToken]: Level.Add,
+  [SyntaxKind.PlusToken]: Level.Add,
+  [SyntaxKind.MinusToken]: Level.Add,
 
-  [ts.SyntaxKind.SlashToken]: Level.Multiply,
-  [ts.SyntaxKind.PercentToken]: Level.Multiply,
-  [ts.SyntaxKind.AsteriskToken]: Level.Multiply,
-  [ts.SyntaxKind.AsteriskAsteriskToken]: Level.Multiply,
+  [SyntaxKind.SlashToken]: Level.Multiply,
+  [SyntaxKind.PercentToken]: Level.Multiply,
+  [SyntaxKind.AsteriskToken]: Level.Multiply,
+  [SyntaxKind.AsteriskAsteriskToken]: Level.Multiply,
 };
 
 let isRightAssociative: {[kind: number]: boolean} = {
-  [ts.SyntaxKind.AsteriskAsteriskToken]: true,
+  [SyntaxKind.AsteriskAsteriskToken]: true,
 
-  [ts.SyntaxKind.AmpersandEqualsToken]: true,
-  [ts.SyntaxKind.AsteriskAsteriskEqualsToken]: true,
-  [ts.SyntaxKind.AsteriskEqualsToken]: true,
-  [ts.SyntaxKind.BarEqualsToken]: true,
-  [ts.SyntaxKind.CaretEqualsToken]: true,
-  [ts.SyntaxKind.EqualsToken]: true,
-  [ts.SyntaxKind.GreaterThanGreaterThanEqualsToken]: true,
-  [ts.SyntaxKind.GreaterThanGreaterThanGreaterThanEqualsToken]: true,
-  [ts.SyntaxKind.LessThanLessThanEqualsToken]: true,
-  [ts.SyntaxKind.MinusEqualsToken]: true,
-  [ts.SyntaxKind.PercentEqualsToken]: true,
-  [ts.SyntaxKind.PlusEqualsToken]: true,
-  [ts.SyntaxKind.SlashEqualsToken]: true,
+  [SyntaxKind.AmpersandEqualsToken]: true,
+  [SyntaxKind.AsteriskAsteriskEqualsToken]: true,
+  [SyntaxKind.AsteriskEqualsToken]: true,
+  [SyntaxKind.BarEqualsToken]: true,
+  [SyntaxKind.CaretEqualsToken]: true,
+  [SyntaxKind.EqualsToken]: true,
+  [SyntaxKind.GreaterThanGreaterThanEqualsToken]: true,
+  [SyntaxKind.GreaterThanGreaterThanGreaterThanEqualsToken]: true,
+  [SyntaxKind.LessThanLessThanEqualsToken]: true,
+  [SyntaxKind.MinusEqualsToken]: true,
+  [SyntaxKind.PercentEqualsToken]: true,
+  [SyntaxKind.PlusEqualsToken]: true,
+  [SyntaxKind.SlashEqualsToken]: true,
 };
 
 function wrapToAvoidAmbiguousElse(node: ts.Statement): boolean {
   while (true) {
     switch (node.kind) {
-      case ts.SyntaxKind.IfStatement: {
+      case SyntaxKind.IfStatement: {
         let elseStatement = (node as ts.IfStatement).elseStatement;
         if (!elseStatement) return true;
         node = elseStatement;
         break;
       }
 
-      case ts.SyntaxKind.ForStatement: node = (node as ts.ForStatement).statement; break;
-      case ts.SyntaxKind.ForInStatement: node = (node as ts.ForInStatement).statement; break;
-      case ts.SyntaxKind.ForOfStatement: node = (node as ts.ForOfStatement).statement; break;
-      case ts.SyntaxKind.WhileStatement: node = (node as ts.WhileStatement).statement; break;
-      case ts.SyntaxKind.WithStatement: node = (node as ts.WithStatement).statement; break;
+      case SyntaxKind.ForStatement: node = (node as ts.ForStatement).statement; break;
+      case SyntaxKind.ForInStatement: node = (node as ts.ForInStatement).statement; break;
+      case SyntaxKind.ForOfStatement: node = (node as ts.ForOfStatement).statement; break;
+      case SyntaxKind.WhileStatement: node = (node as ts.WhileStatement).statement; break;
+      case SyntaxKind.WithStatement: node = (node as ts.WithStatement).statement; break;
 
       default: return false;
     }
@@ -136,7 +141,7 @@ function reduceNumber(text: string): string {
 }
 
 export function emit(program: ts.Program, mode: Emit): string {
-  let previousOperator = ts.SyntaxKind.NullKeyword;
+  let previousOperator = SyntaxKind.NullKeyword;
   let previousOperatorLength = 0;
   let minify = mode == Emit.Minified;
   let needsSemicolon = false;
@@ -166,11 +171,11 @@ export function emit(program: ts.Program, mode: Emit): string {
   // "x ++ + y" => "x+++y"
   // "x + ++ y" => "x+ ++y"
   // "< ! --" => "<! --"
-  function emitSpaceBeforeOperator(operator: ts.SyntaxKind): void {
+  function emitSpaceBeforeOperator(operator: SyntaxKind): void {
     if (out.length === previousOperatorLength && (
-      previousOperator == ts.SyntaxKind.PlusToken && (operator == ts.SyntaxKind.PlusToken || operator == ts.SyntaxKind.PlusPlusToken) ||
-      previousOperator == ts.SyntaxKind.MinusToken && (operator == ts.SyntaxKind.MinusToken || operator == ts.SyntaxKind.MinusMinusToken) ||
-      previousOperator == ts.SyntaxKind.ExclamationToken && operator == ts.SyntaxKind.MinusMinusToken && out.slice(-2) === '<!'
+      previousOperator == SyntaxKind.PlusToken && (operator == SyntaxKind.PlusToken || operator == SyntaxKind.PlusPlusToken) ||
+      previousOperator == SyntaxKind.MinusToken && (operator == SyntaxKind.MinusToken || operator == SyntaxKind.MinusMinusToken) ||
+      previousOperator == SyntaxKind.ExclamationToken && operator == SyntaxKind.MinusMinusToken && out.slice(-2) === '<!'
     )) {
       out += ' ';
     }
@@ -188,7 +193,7 @@ export function emit(program: ts.Program, mode: Emit): string {
   }
 
   function emitBlockInsideStatement(node: ts.Statement): void {
-    if (node.kind == ts.SyntaxKind.Block) {
+    if (node.kind == SyntaxKind.Block) {
       out += space;
       emitBlock(node as ts.Block);
       out += newline;
@@ -228,8 +233,8 @@ export function emit(program: ts.Program, mode: Emit): string {
     emitSpaceBeforeIdentifier();
 
     out += (
-      declarationList.flags & ts.NodeFlags.Const ? 'const' :
-      declarationList.flags & ts.NodeFlags.Let ? 'let' :
+      declarationList.flags & NodeFlags.Const ? 'const' :
+      declarationList.flags & NodeFlags.Let ? 'let' :
       'var') + space;
 
     for (let declaration of declarationList.declarations) {
@@ -244,12 +249,12 @@ export function emit(program: ts.Program, mode: Emit): string {
   }
 
   function emit(node: ts.Node, level: Level): void {
-    if (node.modifiers && node.modifiers.flags & ts.NodeFlags.Ambient) {
+    if (node.modifiers && node.modifiers.flags & NodeFlags.Ambient) {
       return;
     }
 
     switch (node.kind) {
-      case ts.SyntaxKind.ArrayBindingPattern: {
+      case SyntaxKind.ArrayBindingPattern: {
         let elements = (node as ts.ArrayBindingPattern).elements;
         out += '[';
         emitCommaSeparated(elements);
@@ -257,7 +262,7 @@ export function emit(program: ts.Program, mode: Emit): string {
         break;
       }
 
-      case ts.SyntaxKind.BindingElement: {
+      case SyntaxKind.BindingElement: {
         let name = (node as ts.BindingElement).name;
         let initializer = (node as ts.BindingElement).initializer;
         let dotDotDotToken = (node as ts.BindingElement).dotDotDotToken;
@@ -275,7 +280,7 @@ export function emit(program: ts.Program, mode: Emit): string {
         break;
       }
 
-      case ts.SyntaxKind.ComputedPropertyName: {
+      case SyntaxKind.ComputedPropertyName: {
         let expression = (node as ts.ComputedPropertyName).expression;
         out += '[';
         emit(expression, Level.Lowest);
@@ -283,7 +288,7 @@ export function emit(program: ts.Program, mode: Emit): string {
         break;
       }
 
-      case ts.SyntaxKind.ObjectBindingPattern: {
+      case SyntaxKind.ObjectBindingPattern: {
         let elements = (node as ts.ObjectBindingPattern).elements;
         out += '{';
         emitCommaSeparated(elements);
@@ -291,12 +296,12 @@ export function emit(program: ts.Program, mode: Emit): string {
         break;
       }
 
-      case ts.SyntaxKind.Parameter: {
+      case SyntaxKind.Parameter: {
         emit((node as ts.ParameterDeclaration).name, Level.Lowest);
         break;
       }
 
-      case ts.SyntaxKind.PropertyAssignment: {
+      case SyntaxKind.PropertyAssignment: {
         let name = (node as ts.PropertyAssignment).name;
         let initializer = (node as ts.PropertyAssignment).initializer;
         emit(name, Level.Comma);
@@ -305,7 +310,7 @@ export function emit(program: ts.Program, mode: Emit): string {
         break;
       }
 
-      case ts.SyntaxKind.SourceFile: {
+      case SyntaxKind.SourceFile: {
         let statements = (node as ts.SourceFile).statements;
         for (let statement of statements) {
           emitSemicolonIfNeeded();
@@ -317,14 +322,14 @@ export function emit(program: ts.Program, mode: Emit): string {
       ////////////////////////////////////////////////////////////////////////////////
       // Statements
 
-      case ts.SyntaxKind.Block: {
+      case SyntaxKind.Block: {
         out += indent;
         emitBlock(node as ts.Block);
         out += newline;
         break;
       }
 
-      case ts.SyntaxKind.BreakStatement: {
+      case SyntaxKind.BreakStatement: {
         let label = (node as ts.BreakStatement).label;
         out += indent;
         emitSpaceBeforeIdentifier();
@@ -334,7 +339,7 @@ export function emit(program: ts.Program, mode: Emit): string {
         break;
       }
 
-      case ts.SyntaxKind.DebuggerStatement: {
+      case SyntaxKind.DebuggerStatement: {
         out += indent;
         emitSpaceBeforeIdentifier();
         out += 'debugger';
@@ -342,7 +347,7 @@ export function emit(program: ts.Program, mode: Emit): string {
         break;
       }
 
-      case ts.SyntaxKind.ContinueStatement: {
+      case SyntaxKind.ContinueStatement: {
         let label = (node as ts.ContinueStatement).label;
         out += indent;
         emitSpaceBeforeIdentifier();
@@ -352,7 +357,7 @@ export function emit(program: ts.Program, mode: Emit): string {
         break;
       }
 
-      case ts.SyntaxKind.DoStatement: {
+      case SyntaxKind.DoStatement: {
         let statement = (node as ts.DoStatement).statement;
         let expression = (node as ts.DoStatement).expression;
         out += indent;
@@ -369,12 +374,12 @@ export function emit(program: ts.Program, mode: Emit): string {
         break;
       }
 
-      case ts.SyntaxKind.EmptyStatement: {
+      case SyntaxKind.EmptyStatement: {
         out += indent + ';' + newline;
         break;
       }
 
-      case ts.SyntaxKind.ExpressionStatement: {
+      case SyntaxKind.ExpressionStatement: {
         let expression = (node as ts.ExpressionStatement).expression;
         out += indent;
         emit(expression, Level.Lowest);
@@ -382,7 +387,7 @@ export function emit(program: ts.Program, mode: Emit): string {
         break;
       }
 
-      case ts.SyntaxKind.ForStatement: {
+      case SyntaxKind.ForStatement: {
         let initializer = (node as ts.ForStatement).initializer;
         let condition = (node as ts.ForStatement).condition;
         let incrementor = (node as ts.ForStatement).incrementor;
@@ -391,7 +396,7 @@ export function emit(program: ts.Program, mode: Emit): string {
         emitSpaceBeforeIdentifier();
         out += 'for' + space + '(';
         if (initializer) {
-          if (initializer.kind == ts.SyntaxKind.VariableDeclarationList) {
+          if (initializer.kind == SyntaxKind.VariableDeclarationList) {
             emitVariableDeclarations(initializer as ts.VariableDeclarationList);
           } else {
             emit(initializer, Level.Lowest);
@@ -412,14 +417,14 @@ export function emit(program: ts.Program, mode: Emit): string {
         break;
       }
 
-      case ts.SyntaxKind.ForInStatement: {
+      case SyntaxKind.ForInStatement: {
         let initializer = (node as ts.ForInStatement).initializer;
         let expression = (node as ts.ForInStatement).expression;
         let statement = (node as ts.ForInStatement).statement;
         out += indent;
         emitSpaceBeforeIdentifier();
         out += 'for' + space + '(';
-        if (initializer.kind == ts.SyntaxKind.VariableDeclarationList) {
+        if (initializer.kind == SyntaxKind.VariableDeclarationList) {
           emitVariableDeclarations(initializer as ts.VariableDeclarationList);
         } else {
           emit(initializer, Level.Lowest);
@@ -432,14 +437,14 @@ export function emit(program: ts.Program, mode: Emit): string {
         break;
       }
 
-      case ts.SyntaxKind.ForOfStatement: {
+      case SyntaxKind.ForOfStatement: {
         let initializer = (node as ts.ForOfStatement).initializer;
         let expression = (node as ts.ForOfStatement).expression;
         let statement = (node as ts.ForOfStatement).statement;
         out += indent;
         emitSpaceBeforeIdentifier();
         out += 'for' + space + '(';
-        if (initializer.kind == ts.SyntaxKind.VariableDeclarationList) {
+        if (initializer.kind == SyntaxKind.VariableDeclarationList) {
           emitVariableDeclarations(initializer as ts.VariableDeclarationList);
         } else {
           emit(initializer, Level.Lowest);
@@ -452,7 +457,7 @@ export function emit(program: ts.Program, mode: Emit): string {
         break;
       }
 
-      case ts.SyntaxKind.FunctionDeclaration: {
+      case SyntaxKind.FunctionDeclaration: {
         let name = (node as ts.FunctionDeclaration).name;
         let parameters = (node as ts.FunctionDeclaration).parameters;
         let body = (node as ts.FunctionDeclaration).body;
@@ -471,7 +476,7 @@ export function emit(program: ts.Program, mode: Emit): string {
         break;
       }
 
-      case ts.SyntaxKind.IfStatement: {
+      case SyntaxKind.IfStatement: {
         out += indent;
 
         while (true) {
@@ -507,7 +512,7 @@ export function emit(program: ts.Program, mode: Emit): string {
           emitSpaceBeforeIdentifier();
           out += 'else';
 
-          if (elseStatement.kind != ts.SyntaxKind.IfStatement) {
+          if (elseStatement.kind != SyntaxKind.IfStatement) {
             emitBlockInsideStatement(elseStatement);
             break;
           }
@@ -517,11 +522,11 @@ export function emit(program: ts.Program, mode: Emit): string {
         break;
       }
 
-      case ts.SyntaxKind.InterfaceDeclaration: {
+      case SyntaxKind.InterfaceDeclaration: {
         break;
       }
 
-      case ts.SyntaxKind.LabeledStatement: {
+      case SyntaxKind.LabeledStatement: {
         let label = (node as ts.LabeledStatement).label;
         let statement = (node as ts.LabeledStatement).statement;
         if (indent) {
@@ -535,7 +540,7 @@ export function emit(program: ts.Program, mode: Emit): string {
         break;
       }
 
-      case ts.SyntaxKind.ReturnStatement: {
+      case SyntaxKind.ReturnStatement: {
         let expression = (node as ts.ReturnStatement).expression;
         out += indent;
         emitSpaceBeforeIdentifier();
@@ -548,7 +553,7 @@ export function emit(program: ts.Program, mode: Emit): string {
         break;
       }
 
-      case ts.SyntaxKind.ThrowStatement: {
+      case SyntaxKind.ThrowStatement: {
         let expression = (node as ts.ThrowStatement).expression;
         out += indent;
         emitSpaceBeforeIdentifier();
@@ -558,18 +563,18 @@ export function emit(program: ts.Program, mode: Emit): string {
         break;
       }
 
-      case ts.SyntaxKind.TypeAliasDeclaration: {
+      case SyntaxKind.TypeAliasDeclaration: {
         break;
       }
 
-      case ts.SyntaxKind.VariableStatement: {
+      case SyntaxKind.VariableStatement: {
         out += indent;
         emitVariableDeclarations((node as ts.VariableStatement).declarationList);
         emitSemicolonAfterStatement();
         break;
       }
 
-      case ts.SyntaxKind.WhileStatement: {
+      case SyntaxKind.WhileStatement: {
         let expression = (node as ts.WhileStatement).expression;
         let statement = (node as ts.WhileStatement).statement;
         out += indent;
@@ -581,7 +586,7 @@ export function emit(program: ts.Program, mode: Emit): string {
         break;
       }
 
-      case ts.SyntaxKind.WithStatement: {
+      case SyntaxKind.WithStatement: {
         let expression = (node as ts.WithStatement).expression;
         let statement = (node as ts.WithStatement).statement;
         out += indent;
@@ -596,7 +601,7 @@ export function emit(program: ts.Program, mode: Emit): string {
       ////////////////////////////////////////////////////////////////////////////////
       // Expressions
 
-      case ts.SyntaxKind.ArrayLiteralExpression: {
+      case SyntaxKind.ArrayLiteralExpression: {
         let elements = (node as ts.ArrayLiteralExpression).elements;
         out += '[';
         emitCommaSeparated(elements);
@@ -604,7 +609,7 @@ export function emit(program: ts.Program, mode: Emit): string {
         break;
       }
 
-      case ts.SyntaxKind.ArrowFunction: {
+      case SyntaxKind.ArrowFunction: {
         let parameters = (node as ts.ArrowFunction).parameters;
         let body = (node as ts.ArrowFunction).body;
         let wrap = parameters.length !== 1;
@@ -612,7 +617,7 @@ export function emit(program: ts.Program, mode: Emit): string {
         emitCommaSeparated(parameters);
         if (wrap) out += ')';
         out += space + '=>' + space;
-        if (body.kind === ts.SyntaxKind.Block) {
+        if (body.kind === SyntaxKind.Block) {
           emitBlock(body as ts.Block);
         } else {
           emit(body, Level.Comma);
@@ -620,18 +625,18 @@ export function emit(program: ts.Program, mode: Emit): string {
         break;
       }
 
-      case ts.SyntaxKind.AsExpression: {
+      case SyntaxKind.AsExpression: {
         emit((node as ts.AsExpression).expression, level);
         break;
       }
 
-      case ts.SyntaxKind.BinaryExpression: {
+      case SyntaxKind.BinaryExpression: {
         let operatorToken = (node as ts.BinaryExpression).operatorToken;
         let left = (node as ts.BinaryExpression).left;
         let right = (node as ts.BinaryExpression).right;
         let operatorLevel = binaryOperatorLevel[operatorToken.kind];
         if (operatorLevel === undefined) {
-          throw new Error(`Unexpected binary expression kind '${ts.SyntaxKind[operatorToken.kind]}'`);
+          throw new Error(`Unexpected binary expression kind '${SyntaxKind[operatorToken.kind]}'`);
         }
         let biasRight = operatorToken.kind in isRightAssociative;
         let wrap = level >= operatorLevel;
@@ -648,7 +653,7 @@ export function emit(program: ts.Program, mode: Emit): string {
         break;
       }
 
-      case ts.SyntaxKind.CallExpression: {
+      case SyntaxKind.CallExpression: {
         let expression = (node as ts.CallExpression).expression;
         let args = (node as ts.CallExpression).arguments;
         emit(expression, Level.Postfix);
@@ -658,7 +663,7 @@ export function emit(program: ts.Program, mode: Emit): string {
         break;
       }
 
-      case ts.SyntaxKind.ConditionalExpression: {
+      case SyntaxKind.ConditionalExpression: {
         let condition = (node as ts.ConditionalExpression).condition;
         let whenTrue = (node as ts.ConditionalExpression).whenTrue;
         let whenFalse = (node as ts.ConditionalExpression).whenFalse;
@@ -673,7 +678,7 @@ export function emit(program: ts.Program, mode: Emit): string {
         break;
       }
 
-      case ts.SyntaxKind.DeleteExpression: {
+      case SyntaxKind.DeleteExpression: {
         let expression = (node as ts.DeleteExpression).expression;
         emitSpaceBeforeIdentifier();
         out += 'delete';
@@ -681,7 +686,7 @@ export function emit(program: ts.Program, mode: Emit): string {
         break;
       }
 
-      case ts.SyntaxKind.ElementAccessExpression: {
+      case SyntaxKind.ElementAccessExpression: {
         let expression = (node as ts.ElementAccessExpression).expression;
         let argumentExpression = (node as ts.ElementAccessExpression).argumentExpression;
         emit(expression, Level.Member);
@@ -691,23 +696,27 @@ export function emit(program: ts.Program, mode: Emit): string {
         break;
       }
 
-      case ts.SyntaxKind.FalseKeyword: {
-        emitSpaceBeforeIdentifier();
-        out += 'false';
+      case SyntaxKind.FalseKeyword: {
+        if (minify) {
+          out += level >= Level.Prefix ? '(!1)' : '!1';
+        } else {
+          emitSpaceBeforeIdentifier();
+          out += 'false';
+        }
         break;
       }
 
-      case ts.SyntaxKind.Identifier: {
+      case SyntaxKind.Identifier: {
         let text = (node as ts.Identifier).text;
         emitSpaceBeforeIdentifier();
         out += text;
         break;
       }
 
-      case ts.SyntaxKind.NewExpression: {
+      case SyntaxKind.NewExpression: {
         let expression = (node as ts.NewExpression).expression;
         let args = (node as ts.NewExpression).arguments;
-        let wrap = expression.kind == ts.SyntaxKind.CallExpression;
+        let wrap = expression.kind == SyntaxKind.CallExpression;
         emitSpaceBeforeIdentifier();
         out += 'new' + space;
         if (wrap) out += '(';
@@ -719,26 +728,31 @@ export function emit(program: ts.Program, mode: Emit): string {
         break;
       }
 
-      case ts.SyntaxKind.NoSubstitutionTemplateLiteral: {
+      case SyntaxKind.NoSubstitutionTemplateLiteral: {
         let text = (node as ts.TemplateLiteralFragment).text;
         out += '`' + escapeTemplateText(text) + '`';
         break;
       }
 
-      case ts.SyntaxKind.NullKeyword: {
+      case SyntaxKind.NullKeyword: {
         emitSpaceBeforeIdentifier();
         out += 'null';
         break;
       }
 
-      case ts.SyntaxKind.NumericLiteral: {
+      case SyntaxKind.NumericLiteral: {
+        let value = (node as mangler.NumericLiteral).value;
         let text = (node as ts.LiteralExpression).text;
 
         if (minify) {
-          let value = +text;
+          if (value == null) value = +text;
           let normal = reduceNumber(value.toString());
           let exponent = reduceNumber(value.toExponential());
           text = normal.length <= exponent.length ? normal : exponent;
+        }
+
+        else if (text == null) {
+          text = value.toString();
         }
 
         let wrap = text[0] === '-' && level >= Level.Prefix;
@@ -749,7 +763,7 @@ export function emit(program: ts.Program, mode: Emit): string {
         break;
       }
 
-      case ts.SyntaxKind.ObjectLiteralExpression: {
+      case SyntaxKind.ObjectLiteralExpression: {
         let properties = (node as ts.ObjectLiteralExpression).properties;
         out += '{';
         emitCommaSeparated(properties);
@@ -757,16 +771,16 @@ export function emit(program: ts.Program, mode: Emit): string {
         break;
       }
 
-      case ts.SyntaxKind.OmittedExpression: {
+      case SyntaxKind.OmittedExpression: {
         break;
       }
 
-      case ts.SyntaxKind.ParenthesizedExpression: {
+      case SyntaxKind.ParenthesizedExpression: {
         emit((node as ts.ParenthesizedExpression).expression, level);
         break;
       }
 
-      case ts.SyntaxKind.PrefixUnaryExpression: {
+      case SyntaxKind.PrefixUnaryExpression: {
         let operator = (node as ts.PrefixUnaryExpression).operator;
         let operand = (node as ts.PrefixUnaryExpression).operand;
         let wrap = level >= Level.Prefix;
@@ -780,7 +794,7 @@ export function emit(program: ts.Program, mode: Emit): string {
         break;
       }
 
-      case ts.SyntaxKind.PropertyAccessExpression: {
+      case SyntaxKind.PropertyAccessExpression: {
         let expression = (node as ts.PropertyAccessExpression).expression;
         let name = (node as ts.PropertyAccessExpression).name;
         emit(expression, Level.Member);
@@ -789,7 +803,7 @@ export function emit(program: ts.Program, mode: Emit): string {
         break;
       }
 
-      case ts.SyntaxKind.PostfixUnaryExpression: {
+      case SyntaxKind.PostfixUnaryExpression: {
         let operand = (node as ts.PostfixUnaryExpression).operand;
         let operator = (node as ts.PostfixUnaryExpression).operator;
         let wrap = level >= Level.Postfix;
@@ -800,26 +814,26 @@ export function emit(program: ts.Program, mode: Emit): string {
         break;
       }
 
-      case ts.SyntaxKind.RegularExpressionLiteral: {
+      case SyntaxKind.RegularExpressionLiteral: {
         let text = (node as ts.LiteralExpression).text;
         out += text;
         break;
       }
 
-      case ts.SyntaxKind.SpreadElementExpression: {
+      case SyntaxKind.SpreadElementExpression: {
         let expression = (node as ts.SpreadElementExpression).expression;
         out += '...';
         emit(expression, Level.Spread);
         break;
       }
 
-      case ts.SyntaxKind.StringLiteral: {
+      case SyntaxKind.StringLiteral: {
         let text = (node as ts.StringLiteral).text;
         out += JSON.stringify(text);
         break;
       }
 
-      case ts.SyntaxKind.TaggedTemplateExpression: {
+      case SyntaxKind.TaggedTemplateExpression: {
         let tag = (node as ts.TaggedTemplateExpression).tag;
         let template = (node as ts.TaggedTemplateExpression).template;
         emit(tag, Level.Prefix);
@@ -827,7 +841,7 @@ export function emit(program: ts.Program, mode: Emit): string {
         break;
       }
 
-      case ts.SyntaxKind.TemplateExpression: {
+      case SyntaxKind.TemplateExpression: {
         let head = (node as ts.TemplateExpression).head;
         let spans = (node as ts.TemplateExpression).templateSpans;
         emit(head, Level.Lowest);
@@ -838,37 +852,41 @@ export function emit(program: ts.Program, mode: Emit): string {
         break;
       }
 
-      case ts.SyntaxKind.TemplateHead: {
+      case SyntaxKind.TemplateHead: {
         let text = (node as ts.TemplateLiteralFragment).text;
         out += '`' + escapeTemplateText(text) + '${';
         break;
       }
 
-      case ts.SyntaxKind.TemplateMiddle: {
+      case SyntaxKind.TemplateMiddle: {
         let text = (node as ts.TemplateLiteralFragment).text;
         out += '}' + escapeTemplateText(text) + '${';
         break;
       }
 
-      case ts.SyntaxKind.TemplateTail: {
+      case SyntaxKind.TemplateTail: {
         let text = (node as ts.TemplateLiteralFragment).text;
         out += '}' + escapeTemplateText(text) + '`';
         break;
       }
 
-      case ts.SyntaxKind.ThisKeyword: {
+      case SyntaxKind.ThisKeyword: {
         emitSpaceBeforeIdentifier();
         out += 'this';
         break;
       }
 
-      case ts.SyntaxKind.TrueKeyword: {
-        emitSpaceBeforeIdentifier();
-        out += 'true';
+      case SyntaxKind.TrueKeyword: {
+        if (minify) {
+          out += level >= Level.Prefix ? '(!0)' : '!0';
+        } else {
+          emitSpaceBeforeIdentifier();
+          out += 'true';
+        }
         break;
       }
 
-      case ts.SyntaxKind.TypeOfExpression: {
+      case SyntaxKind.TypeOfExpression: {
         let expression = (node as ts.TypeOfExpression).expression;
         emitSpaceBeforeIdentifier();
         out += 'typeof';
@@ -876,7 +894,7 @@ export function emit(program: ts.Program, mode: Emit): string {
         break;
       }
 
-      case ts.SyntaxKind.VoidExpression: {
+      case SyntaxKind.VoidExpression: {
         let expression = (node as ts.VoidExpression).expression;
         emitSpaceBeforeIdentifier();
         out += 'void';
@@ -885,7 +903,7 @@ export function emit(program: ts.Program, mode: Emit): string {
       }
 
       default: {
-        console.warn(`Unexpected node kind '${ts.SyntaxKind[node.kind]}'`);
+        console.warn(`Unexpected node kind '${SyntaxKind[node.kind]}'`);
         break;
       }
     }
