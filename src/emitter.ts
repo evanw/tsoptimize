@@ -227,11 +227,45 @@ export function emit(program: ts.Program, mode: Emit): string {
     }
 
     switch (node.kind) {
+      case ts.SyntaxKind.ArrayBindingPattern: {
+        let elements = (node as ts.ArrayBindingPattern).elements;
+        out += '[';
+        emitCommaSeparated(elements);
+        out += ']';
+        break;
+      }
+
+      case ts.SyntaxKind.BindingElement: {
+        let name = (node as ts.BindingElement).name;
+        let initializer = (node as ts.BindingElement).initializer;
+        let dotDotDotToken = (node as ts.BindingElement).dotDotDotToken;
+        let propertyName = (node as ts.BindingElement).propertyName;
+        if (dotDotDotToken) out += '...';
+        emit(name, Level.Lowest);
+        if (propertyName) {
+          out += ':' + space;
+          emit(propertyName, Level.Lowest);
+        }
+        if (initializer) {
+          out += space + '=' + space;
+          emit(initializer, Level.Lowest);
+        }
+        break;
+      }
+
       case ts.SyntaxKind.ComputedPropertyName: {
         let expression = (node as ts.ComputedPropertyName).expression;
         out += '[';
         emit(expression, Level.Lowest);
         out += ']';
+        break;
+      }
+
+      case ts.SyntaxKind.ObjectBindingPattern: {
+        let elements = (node as ts.ObjectBindingPattern).elements;
+        out += '{';
+        emitCommaSeparated(elements);
+        out += '}';
         break;
       }
 
@@ -728,9 +762,30 @@ export function emit(program: ts.Program, mode: Emit): string {
         break;
       }
 
+      case ts.SyntaxKind.RegularExpressionLiteral: {
+        let text = (node as ts.LiteralExpression).text;
+        out += text;
+        break;
+      }
+
+      case ts.SyntaxKind.SpreadElementExpression: {
+        let expression = (node as ts.SpreadElementExpression).expression;
+        out += '...';
+        emit(expression, Level.Spread);
+        break;
+      }
+
       case ts.SyntaxKind.StringLiteral: {
         let text = (node as ts.StringLiteral).text;
         out += JSON.stringify(text);
+        break;
+      }
+
+      case ts.SyntaxKind.TaggedTemplateExpression: {
+        let tag = (node as ts.TaggedTemplateExpression).tag;
+        let template = (node as ts.TaggedTemplateExpression).template;
+        emit(tag, Level.Prefix);
+        emit(template, Level.Lowest);
         break;
       }
 
