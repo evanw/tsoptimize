@@ -151,3 +151,32 @@ it('numbers', function() {
     '[1e100.toString,-1e100.toString,(-1e100).toString,1.5e100.toString,-1.5e100.toString,(-1.5e100).toString];'
   );
 });
+
+it('unary whitespace', function() {
+  this.timeout(0);
+
+  check(
+    'var x: any;' +
+    '[+ +x, +-x, -+x, - -x, + ++x, +--x, -++x, - --x];' +
+    '[x++ + x, x + +x, x + ++x, x * x++ + x, x + +x * x, x + ++x * x];' +
+    '[x-- - x, x - -x, x - --x, x * x-- - x, x - -x * x, x - --x * x];' +
+    '[x++ - x, x + -x, x + --x, x * x++ - x, x + -x * x, x + --x * x];' +
+    '[x-- + x, x - +x, x - ++x, x * x-- + x, x - +x * x, x - ++x * x];' +
+    '[x < !--x, x < ~--x, x > !--x];',
+    '',
+    'var x;\n' +
+    '[+ +x, +-x, -+x, - -x, + ++x, +--x, -++x, - --x];\n' +
+    '[x++ + x, x + +x, x + ++x, x * x++ + x, x + +x * x, x + ++x * x];\n' +
+    '[x-- - x, x - -x, x - --x, x * x-- - x, x - -x * x, x - --x * x];\n' +
+    '[x++ - x, x + -x, x + --x, x * x++ - x, x + -x * x, x + --x * x];\n' +
+    '[x-- + x, x - +x, x - ++x, x * x-- + x, x - +x * x, x - ++x * x];\n' +
+    '[x < !--x, x < ~--x, x > !--x];',
+    'var x;' +
+    '[+ +x,+-x,-+x,- -x,+ ++x,+--x,-++x,- --x];' +
+    '[x+++x,x+ +x,x+ ++x,x*x+++x,x+ +x*x,x+ ++x*x];' +
+    '[x---x,x- -x,x- --x,x*x---x,x- -x*x,x- --x*x];' +
+    '[x++-x,x+-x,x+--x,x*x++-x,x+-x*x,x+--x*x];' +
+    '[x--+x,x-+x,x-++x,x*x--+x,x-+x*x,x-++x*x];' +
+    '[x<! --x,x<~--x,x>!--x];'
+  );
+});

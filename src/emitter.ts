@@ -127,21 +127,23 @@ let templateEscapes: {[c: string]: string} = {
   '$': '\\$',
 };
 
+function escapeTemplateText(text: string): string {
+  return text.replace(/[\0\\`$\f\v\r\n\u2028\u2029]/g, c => templateEscapes[c]);
+}
+
 function reduceNumber(text: string): string {
   return text.replace(/^(-?)0\./, '$1.').replace('+', '');
 }
 
 export function emit(program: ts.Program, mode: Emit): string {
+  let previousOperator = ts.SyntaxKind.NullKeyword;
+  let previousOperatorLength = 0;
   let minify = mode == Emit.Minified;
   let needsSemicolon = false;
   let newline = minify ? '' : '\n';
   let space = minify ? '' : ' ';
   let indent = '';
   let out = '';
-
-  function escapeTemplateText(text: string): string {
-    return text.replace(/[\0\\`$\f\v\r\n\u2028\u2029]/g, c => templateEscapes[c]);
-  }
 
   function increaseIndent(): void {
     if (!minify) indent += '  ';
@@ -155,6 +157,22 @@ export function emit(program: ts.Program, mode: Emit): string {
     if (needsSemicolon) {
       needsSemicolon = false;
       out += ';';
+    }
+  }
+
+  // "+ + y" => "+ +y"
+  // "+ ++ y" => "+ ++y"
+  // "x + + y" => "x+ +y"
+  // "x ++ + y" => "x+++y"
+  // "x + ++ y" => "x+ ++y"
+  // "< ! --" => "<! --"
+  function emitSpaceBeforeOperator(operator: ts.SyntaxKind): void {
+    if (out.length === previousOperatorLength && (
+      previousOperator == ts.SyntaxKind.PlusToken && (operator == ts.SyntaxKind.PlusToken || operator == ts.SyntaxKind.PlusPlusToken) ||
+      previousOperator == ts.SyntaxKind.MinusToken && (operator == ts.SyntaxKind.MinusToken || operator == ts.SyntaxKind.MinusMinusToken) ||
+      previousOperator == ts.SyntaxKind.ExclamationToken && operator == ts.SyntaxKind.MinusMinusToken && out.slice(-2) === '<!'
+    )) {
+      out += ' ';
     }
   }
 
@@ -620,7 +638,10 @@ export function emit(program: ts.Program, mode: Emit): string {
         if (wrap) out += '(';
         emit(left, operatorLevel - +!biasRight);
         if (operatorLevel !== Level.Comma) out += space;
+        emitSpaceBeforeOperator(operatorToken.kind);
         out += ts.tokenToString(operatorToken.kind);
+        previousOperator = operatorToken.kind;
+        previousOperatorLength = out.length;
         out += space;
         emit(right, operatorLevel - +biasRight);
         if (wrap) out += ')';
@@ -750,7 +771,10 @@ export function emit(program: ts.Program, mode: Emit): string {
         let operand = (node as ts.PrefixUnaryExpression).operand;
         let wrap = level >= Level.Prefix;
         if (wrap) out += '(';
+        emitSpaceBeforeOperator(operator);
         out += ts.tokenToString(operator);
+        previousOperator = operator;
+        previousOperatorLength = out.length;
         emit(operand, Level.Prefix - 1);
         if (wrap) out += ')';
         break;
