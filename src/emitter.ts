@@ -114,6 +114,19 @@ function wrapToAvoidAmbiguousElse(node: ts.Statement): boolean {
   }
 }
 
+let templateEscapes: {[c: string]: string} = {
+  '\\': '\\\\',
+  '\0': '\\0',
+  '\f': '\\f',
+  '\n': '\\n',
+  '\r': '\\r',
+  '\u2028': '\\u2028',
+  '\u2029': '\\u2029',
+  '\v': '\\v',
+  '`': '\\`',
+  '$': '\\$',
+};
+
 export function emit(program: ts.Program, mode: Emit): string {
   let minify = mode == Emit.Minified;
   let needsSemicolon = false;
@@ -121,6 +134,10 @@ export function emit(program: ts.Program, mode: Emit): string {
   let space = minify ? '' : ' ';
   let indent = '';
   let out = '';
+
+  function escapeTemplateText(text: string): string {
+    return text.replace(/[\0\\`$\f\v\r\n\u2028\u2029]/g, c => templateEscapes[c]);
+  }
 
   function increaseIndent(): void {
     if (!minify) indent += '  ';
@@ -184,11 +201,16 @@ export function emit(program: ts.Program, mode: Emit): string {
     }
   }
 
-  function emitVariableDeclarations(declarations: ts.VariableDeclaration[]): void {
+  function emitVariableDeclarations(declarationList: ts.VariableDeclarationList): void {
     let isFirst = true;
     emitSpaceBeforeIdentifier();
-    out += 'var' + space;
-    for (let declaration of declarations) {
+
+    out += (
+      declarationList.flags & ts.NodeFlags.Const ? 'const' :
+      declarationList.flags & ts.NodeFlags.Let ? 'let' :
+      'var') + space;
+
+    for (let declaration of declarationList.declarations) {
       if (isFirst) isFirst = false;
       else out += ',' + space;
       emit(declaration.name, Level.Lowest);
@@ -200,6 +222,10 @@ export function emit(program: ts.Program, mode: Emit): string {
   }
 
   function emit(node: ts.Node, level: Level): void {
+    if (node.modifiers && node.modifiers.flags & ts.NodeFlags.Ambient) {
+      return;
+    }
+
     switch (node.kind) {
       case ts.SyntaxKind.ComputedPropertyName: {
         let expression = (node as ts.ComputedPropertyName).expression;
@@ -305,7 +331,7 @@ export function emit(program: ts.Program, mode: Emit): string {
         out += 'for' + space + '(';
         if (initializer) {
           if (initializer.kind == ts.SyntaxKind.VariableDeclarationList) {
-            emitVariableDeclarations((initializer as ts.VariableDeclarationList).declarations);
+            emitVariableDeclarations(initializer as ts.VariableDeclarationList);
           } else {
             emit(initializer, Level.Lowest);
           }
@@ -333,7 +359,7 @@ export function emit(program: ts.Program, mode: Emit): string {
         emitSpaceBeforeIdentifier();
         out += 'for' + space + '(';
         if (initializer.kind == ts.SyntaxKind.VariableDeclarationList) {
-          emitVariableDeclarations((initializer as ts.VariableDeclarationList).declarations);
+          emitVariableDeclarations(initializer as ts.VariableDeclarationList);
         } else {
           emit(initializer, Level.Lowest);
         }
@@ -353,7 +379,7 @@ export function emit(program: ts.Program, mode: Emit): string {
         emitSpaceBeforeIdentifier();
         out += 'for' + space + '(';
         if (initializer.kind == ts.SyntaxKind.VariableDeclarationList) {
-          emitVariableDeclarations((initializer as ts.VariableDeclarationList).declarations);
+          emitVariableDeclarations(initializer as ts.VariableDeclarationList);
         } else {
           emit(initializer, Level.Lowest);
         }
@@ -366,10 +392,6 @@ export function emit(program: ts.Program, mode: Emit): string {
       }
 
       case ts.SyntaxKind.FunctionDeclaration: {
-        if (node.modifiers && node.modifiers.flags & ts.NodeFlags.Ambient) {
-          return;
-        }
-
         let name = (node as ts.FunctionDeclaration).name;
         let parameters = (node as ts.FunctionDeclaration).parameters;
         let body = (node as ts.FunctionDeclaration).body;
@@ -484,13 +506,8 @@ export function emit(program: ts.Program, mode: Emit): string {
       }
 
       case ts.SyntaxKind.VariableStatement: {
-        if (node.modifiers && node.modifiers.flags & ts.NodeFlags.Ambient) {
-          return;
-        }
-
-        let declarations = (node as ts.VariableStatement).declarationList.declarations;
         out += indent;
-        emitVariableDeclarations(declarations);
+        emitVariableDeclarations((node as ts.VariableStatement).declarationList);
         emitSemicolonAfterStatement();
         break;
       }
@@ -626,6 +643,12 @@ export function emit(program: ts.Program, mode: Emit): string {
         break;
       }
 
+      case ts.SyntaxKind.NoSubstitutionTemplateLiteral: {
+        let text = (node as ts.TemplateLiteralFragment).text;
+        out += '`' + escapeTemplateText(text) + '`';
+        break;
+      }
+
       case ts.SyntaxKind.NullKeyword: {
         emitSpaceBeforeIdentifier();
         out += 'null';
@@ -634,6 +657,14 @@ export function emit(program: ts.Program, mode: Emit): string {
 
       case ts.SyntaxKind.NumericLiteral: {
         let text = (node as ts.LiteralExpression).text;
+
+        if (minify) {
+          let value = +text;
+          let normal = value.toString();
+          let exponent = value.toExponential();
+          text = normal.length <= exponent.length ? normal : exponent;
+        }
+
         out += text;
         break;
       }
@@ -683,6 +714,35 @@ export function emit(program: ts.Program, mode: Emit): string {
       case ts.SyntaxKind.StringLiteral: {
         let text = (node as ts.StringLiteral).text;
         out += JSON.stringify(text);
+        break;
+      }
+
+      case ts.SyntaxKind.TemplateExpression: {
+        let head = (node as ts.TemplateExpression).head;
+        let spans = (node as ts.TemplateExpression).templateSpans;
+        emit(head, Level.Lowest);
+        for (let span of spans) {
+          emit(span.expression, Level.Lowest);
+          emit(span.literal, Level.Lowest);
+        }
+        break;
+      }
+
+      case ts.SyntaxKind.TemplateHead: {
+        let text = (node as ts.TemplateLiteralFragment).text;
+        out += '`' + escapeTemplateText(text) + '${';
+        break;
+      }
+
+      case ts.SyntaxKind.TemplateMiddle: {
+        let text = (node as ts.TemplateLiteralFragment).text;
+        out += '}' + escapeTemplateText(text) + '${';
+        break;
+      }
+
+      case ts.SyntaxKind.TemplateTail: {
+        let text = (node as ts.TemplateLiteralFragment).text;
+        out += '}' + escapeTemplateText(text) + '`';
         break;
       }
 

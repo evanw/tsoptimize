@@ -22,8 +22,8 @@ it('general', function() {
   this.timeout(0);
 
   check(
-`function test(a: number, b: number, c: any): number {
-  [false, true, null, this, 0, 1.5000, 1e10, 'abc\\n', "abc\\n"];
+`function test(a: number, b: number): number {
+  [false, true, null, this, 0, 1.5000, 1e10, 'abc\\n', "abc\\n", \`abc\\n\`, \`\${a}\${b}c\\n\`];
   do break; while (true);
   do continue; while (false);
   x: do break x; while (true);
@@ -35,21 +35,23 @@ it('general', function() {
   while (true) break;
   for (;;) break;
   var i = 0, j = 1;
+  let l = 0;
+  const c: any = null;
   for (i = 0; i < 10; i++) ;
   for (var i = 0, j = 10; i < j; i++, j--) ;
   for (x in c) ;
   for (var x in c) ;
   for (y of c) ;
   for (var y of c) ;
-  [i?a:b, test(i, j, c), (a, b, i, j), , , {a: b, "b": a, [a]: b}, c[a], c.a, a as number];
+  [i?a:b, test(i, j), (a, b, i, j), , , {a: b, "b": a, [a]: b}, c[a], c.a, a as number];
   [+a, -a, !a, ~a, --a, ++a, a--, a++, void a, typeof a, delete a];
   [a == b, a != b, a === b, a !== b, a < b, a > b, a <= b, a >= b, a && b, a || b];
   [a + b, a - b, a * b, a / b, a % b, a ** b, a & b, a | b, a ^ b, a << b, a >> b];
   [a = b, a += b, a -= b, a *= b, a /= b, a %= b, a **= b, a &= b, a |= b, a ^= b, a <<= b, a >>= b];
 }`,
 '',
-`function test(a, b, c) {
-  [false, true, null, this, 0, 1.5, 10000000000, "abc\\n", "abc\\n"];
+`function test(a, b) {
+  [false, true, null, this, 0, 1.5, 10000000000, "abc\\n", "abc\\n", \`abc\\n\`, \`\${a}\${b}c\\n\`];
   do
     break;
   while (true);
@@ -79,6 +81,8 @@ z:
   for (;;)
     break;
   var i = 0, j = 1;
+  let l = 0;
+  const c = null;
   for (i = 0; i < 10; i++)
     ;
   for (var i = 0, j = 10; i < j; i++, j--)
@@ -91,15 +95,15 @@ z:
     ;
   for (var y of c)
     ;
-  [i ? a : b, test(i, j, c), (a, b, i, j), , , {a: b, "b": a, [a]: b}, c[a], c.a, a];
+  [i ? a : b, test(i, j), (a, b, i, j), , , {a: b, "b": a, [a]: b}, c[a], c.a, a];
   [+a, -a, !a, ~a, --a, ++a, a--, a++, void a, typeof a, delete a];
   [a == b, a != b, a === b, a !== b, a < b, a > b, a <= b, a >= b, a && b, a || b];
   [a + b, a - b, a * b, a / b, a % b, a ** b, a & b, a | b, a ^ b, a << b, a >> b];
   [a = b, a += b, a -= b, a *= b, a /= b, a %= b, a **= b, a &= b, a |= b, a ^= b, a <<= b, a >>= b];
 }
 `,
-`function test(a,b,c){
-[false,true,null,this,0,1.5,10000000000,"abc\\n","abc\\n"];
+`function test(a,b){
+[false,true,null,this,0,1.5,1e+10,"abc\\n","abc\\n",\`abc\\n\`,\`\${a}\${b}c\\n\`];
 do break;while(true);
 do continue;while(false);
 x:do break x;while(true);
@@ -111,13 +115,15 @@ else debugger;
 while(true)break;
 for(;;)break;
 var i=0,j=1;
+let l=0;
+const c=null;
 for(i=0;i<10;i++);
 for(var i=0,j=10;i<j;i++,j--);
 for(x in c);
 for(var x in c);
 for(y of c);
 for(var y of c);
-[i?a:b,test(i,j,c),(a,b,i,j),,,{a:b,"b":a,[a]:b},c[a],c.a,a];
+[i?a:b,test(i,j),(a,b,i,j),,,{a:b,"b":a,[a]:b},c[a],c.a,a];
 [+a,-a,!a,~a,--a,++a,a--,a++,void a,typeof a,delete a];
 [a==b,a!=b,a===b,a!==b,a<b,a>b,a<=b,a>=b,a&&b,a||b];
 [a+b,a-b,a*b,a/b,a%b,a**b,a&b,a|b,a^b,a<<b,a>>b];
