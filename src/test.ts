@@ -180,3 +180,20 @@ it('unary whitespace', function() {
     '[x<! --x,x<~--x,x>!--x];'
   );
 });
+
+it('precedence and parentheses', function() {
+  this.timeout(0);
+
+  check(
+    'var x: any;' +
+    '[-x + x, -(x + x)];' +
+    '[(x + x) + x, x + (x + x), x + (x * x), (x + x) * x, (x ** x) ** x, x ** (x ** x)];',
+    '',
+    'var x;\n' +
+    '[-x + x, -(x + x)];\n' +
+    '[x + x + x, x + (x + x), x + x * x, (x + x) * x, (x ** x) ** x, x ** x ** x];',
+    'var x;' +
+    '[-x+x,-(x+x)];' +
+    '[x+x+x,x+(x+x),x+x*x,(x+x)*x,(x**x)**x,x**x**x];'
+  );
+});
