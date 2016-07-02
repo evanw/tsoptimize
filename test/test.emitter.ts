@@ -1,10 +1,10 @@
 import * as assert from 'assert';
 import * as emitter from '../src/emitter';
-import * as test from './test';
+import * as helpers from '../src/helpers';
 import * as ts from 'typescript';
 
 function check(input: string, expectedNormal: string, expectedMinified: string): void {
-  var program = test.createProgram({'input.ts': input}, {noImplicitAny: true});
+  var program = helpers.createProgram({'input.ts': input}, {noImplicitAny: true});
   var diagnostics = ts.getPreEmitDiagnostics(program).map(diagnostic => {
     var {line, character} = diagnostic.file.getLineAndCharacterOfPosition(diagnostic.start);
     let message = ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n');

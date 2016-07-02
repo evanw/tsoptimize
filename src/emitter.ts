@@ -1,5 +1,5 @@
+import * as helpers from './helpers';
 import * as ts from 'typescript';
-import * as mangler from './mangler';
 
 let NodeFlags = ts.NodeFlags;
 let SyntaxKind = ts.SyntaxKind;
@@ -741,7 +741,7 @@ export function emit(program: ts.Program, mode: Emit): string {
       }
 
       case SyntaxKind.NumericLiteral: {
-        let value = (node as mangler.NumericLiteral).value;
+        let value = (node as helpers.NumericLiteral).value;
         let text = (node as ts.LiteralExpression).text;
 
         if (minify) {
