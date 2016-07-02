@@ -235,6 +235,11 @@ export function emit(program: ts.Program, mode: Emit): string {
         break;
       }
 
+      case ts.SyntaxKind.Parameter: {
+        emit((node as ts.ParameterDeclaration).name, Level.Lowest);
+        break;
+      }
+
       case ts.SyntaxKind.PropertyAssignment: {
         let name = (node as ts.PropertyAssignment).name;
         let initializer = (node as ts.PropertyAssignment).initializer;
@@ -402,11 +407,7 @@ export function emit(program: ts.Program, mode: Emit): string {
           out += 'function ';
           emit(name, Level.Lowest);
           out += '(';
-          for (let parameter of parameters) {
-            if (isFirst) isFirst = false;
-            else out += ',' + space;
-            emit(parameter.name, Level.Lowest);
-          }
+          emitCommaSeparated(parameters);
           out += ')' + space;
           emitBlock(body);
           out += newline;
@@ -544,6 +545,22 @@ export function emit(program: ts.Program, mode: Emit): string {
         out += '[';
         emitCommaSeparated(elements);
         out += ']';
+        break;
+      }
+
+      case ts.SyntaxKind.ArrowFunction: {
+        let parameters = (node as ts.ArrowFunction).parameters;
+        let body = (node as ts.ArrowFunction).body;
+        let wrap = parameters.length !== 1;
+        if (wrap) out += '(';
+        emitCommaSeparated(parameters);
+        if (wrap) out += ')';
+        out += space + '=>' + space;
+        if (body.kind === ts.SyntaxKind.Block) {
+          emitBlock(body as ts.Block);
+        } else {
+          emit(body, Level.Comma);
+        }
         break;
       }
 

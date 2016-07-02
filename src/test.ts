@@ -24,6 +24,7 @@ it('general', function() {
   check(
 `function test(a: number, b: number): number {
   [false, true, null, this, 0, 1.5000, 1e10, 'abc\\n', "abc\\n", \`abc\\n\`, \`\${a}\${b}c\\n\`];
+  [() => {}, (a: number) => a, (a: number, b: number) => { throw a + b; }];
   do break; while (true);
   do continue; while (false);
   x: do break x; while (true);
@@ -52,6 +53,10 @@ it('general', function() {
 '',
 `function test(a, b) {
   [false, true, null, this, 0, 1.5, 10000000000, "abc\\n", "abc\\n", \`abc\\n\`, \`\${a}\${b}c\\n\`];
+  [() => {
+  }, a => a, (a, b) => {
+    throw a + b;
+  }];
   do
     break;
   while (true);
@@ -104,6 +109,7 @@ z:
 `,
 `function test(a,b){
 [false,true,null,this,0,1.5,1e+10,"abc\\n","abc\\n",\`abc\\n\`,\`\${a}\${b}c\\n\`];
+[()=>{},a=>a,(a,b)=>{throw a+b}];
 do break;while(true);
 do continue;while(false);
 x:do break x;while(true);
