@@ -1,0 +1,85 @@
+<style>
+  body {
+    font: 15px sans-serif;
+    margin: 50px 0 50px 50px;
+  }
+
+  section {
+    vertical-align: top;
+    display: inline-block;
+    width: 50%;
+    padding-right: 50px;
+    box-sizing: border-box;
+  }
+
+  textarea {
+    font: 12px Monaco, monospace;
+    width: 100%;
+    height: 500px;
+    box-sizing: border-box;
+    resize: vertical;
+  }
+</style>
+<h1>TypeScript Optimizer Demo</h1>
+<p>
+  <label><input type="checkbox" id="minify"> Minify</label>
+</p>
+
+<section>
+  <h2>Input</h2>
+  <textarea id="input" autofocus>let DEBUG = false;
+
+function main(): void {
+  if (DEBUG) {
+    console.log('enter main');
+  }
+
+  console.log(`DEBUG is ${DEBUG}`);
+
+  if (DEBUG) {
+    console.log('leave main');
+  }
+}
+</textarea>
+</section><section>
+  <h2>Output</h2>
+  <textarea id="output" readonly></textarea>
+</section>
+<script>
+  (function() {
+    var input = document.getElementById('input');
+    var output = document.getElementById('output');
+    var minify = document.getElementById('minify');
+    var isOutOfDate = false;
+    var isBusy = false;
+
+    function post(input, callback) {
+      var xhr = new XMLHttpRequest;
+      xhr.open('POST', '/');
+      xhr.onload = function() {
+        callback(JSON.parse(xhr.responseText));
+      };
+      xhr.send(JSON.stringify({input: input, minify: minify.checked}));
+    }
+
+    function update() {
+      if (isBusy) {
+        isOutOfDate = true;
+      }
+
+      else {
+        isBusy = true;
+        isOutOfDate = false;
+
+        post(input.value, function(json) {
+          isBusy = false;
+          if (isOutOfDate) update();
+          else output.value = json.success ? json.output : json.diagnostics;
+        });
+      }
+    }
+
+    input.oninput = minify.onchange = update;
+    update();
+  })();
+</script>

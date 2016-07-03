@@ -13,8 +13,9 @@ class ScanInfo {
 export class Scanner {
   private _info: {[id: number]: ScanInfo} = {};
 
-  inlineConstantVariables(): void {
+  inlineConstantVariables(): boolean {
     let map = this._info;
+    let wasChanged = false;
 
     for (let id in map) {
       let info = map[id];
@@ -41,6 +42,7 @@ export class Scanner {
       for (let read of info.reads) {
         if (read.kind() === Kind.Identifier) {
           read.become(value);
+          wasChanged = true;
           count++;
         }
       }
@@ -48,6 +50,7 @@ export class Scanner {
       // Remove the variable now that it's unused
       if (count === info.reads.length) {
         let parent = write.parent();
+        wasChanged = true;
         write.remove();
 
         // Make sure not to leave a "var" without any variables
@@ -56,6 +59,8 @@ export class Scanner {
         }
       }
     }
+
+    return wasChanged;
   }
 
   scan(node: Node): void {
