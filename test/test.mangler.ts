@@ -61,3 +61,66 @@ it('mangler: strings', function() {
     'this.x=["0a"+x,"a"+(0+x),x+"a0",x+0+"a",x+"0","0"+x];'
   );
 });
+
+it('mangler: side effects', function() {
+  this.timeout(0);
+
+  check(
+    'var x: any;' +
+    '0;' +
+    'null;' +
+    'this;' +
+    'void 0;' +
+    '"text";' +
+    'x;' +
+    'x();' +
+    'x((0, x()));' +
+    'x((x(), 0));' +
+    'x((0, x(), 0, x()));' +
+    'x((x(), 0, x(), 0));' +
+    'x((x(), (x(), x()), x()));' +
+    'x(1) + "" + [x(2).x, x[x], x(3)[x], x[x(4)], {x}, {x: x(5)}];',
+
+    'var x;\n' +
+    'x();\n' +
+    'x(x());\n' +
+    'x((x(), 0));\n' +
+    'x((x(), x()));\n' +
+    'x((x(), x(), 0));\n' +
+    'x((x(), x(), x(), x()));\n' +
+    'x(1), x(2), x(3), x(4), x(5);',
+
+    'var x;' +
+    'x();' +
+    'x(x());' +
+    'x((x(),0));' +
+    'x((x(),x()));' +
+    'x((x(),x(),0));' +
+    'x((x(),x(),x(),x()));' +
+    'x(1),x(2),x(3),x(4),x(5);'
+  );
+});
+
+it('mangler: boolean conditional logic', function() {
+  this.timeout(0);
+
+  check(
+    'var x: any;' +
+    'x(1 ? 2 : 3);' +
+    'x(0 ? 2 : 3);' +
+    'x(x ? 2 : 3);' +
+    'x(!x ? 2 : 3);',
+
+    'var x;\n' +
+    'x(2);\n' +
+    'x(3);\n' +
+    'x(x ? 2 : 3);\n' +
+    'x(x ? 3 : 2);',
+
+    'var x;' +
+    'x(2);' +
+    'x(3);' +
+    'x(x?2:3);' +
+    'x(x?3:2);'
+  );
+});

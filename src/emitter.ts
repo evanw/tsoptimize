@@ -40,7 +40,7 @@ function wrapToAvoidAmbiguousElse(node: Node): boolean {
     switch (node.kind()) {
       case Kind.If: {
         let child = node.ifFalse();
-        if (child.kind() === Kind.Empty) return true;
+        if (child.isEmpty()) return true;
         node = child;
         break;
       }
@@ -311,7 +311,7 @@ export function emit(root: Node, mode: Emit): string {
         out += indent;
         emitSpaceBeforeIdentifier();
         out += 'for' + space + '(';
-        if (setup.kind() !== Kind.Empty) {
+        if (!setup.isEmpty()) {
           if (setup.kind() == Kind.Variables) {
             emitVariables(setup);
           } else {
@@ -319,12 +319,12 @@ export function emit(root: Node, mode: Emit): string {
           }
         }
         out += ';';
-        if (test.kind() !== Kind.Empty) {
+        if (!test.isEmpty()) {
           out += space;
           emit(test, Level.Lowest);
         }
         out += ';';
-        if (update.kind() !== Kind.Empty) {
+        if (!update.isEmpty()) {
           out += space;
           emit(update, Level.Lowest);
         }
@@ -376,7 +376,7 @@ export function emit(root: Node, mode: Emit): string {
           emit(test, Level.Lowest);
           out += ')';
 
-          if (whenFalse.kind() === Kind.Empty) {
+          if (whenFalse.isEmpty()) {
             emitBlockInsideStatement(whenTrue);
             break;
           }

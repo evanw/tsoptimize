@@ -175,6 +175,14 @@ export class Node {
     return this._nextSibling;
   }
 
+  hasChildren(): boolean {
+    return this._firstChild !== null;
+  }
+
+  hasOneChild(): boolean {
+    return this._firstChild !== null && this._firstChild === this._lastChild;
+  }
+
   childCount(): number {
     let count = 0;
     for (let child = this._firstChild; child !== null; child = child._nextSibling) {
@@ -186,15 +194,20 @@ export class Node {
   become(node: Node): void {
     assert(node !== this && node._parent === null);
 
-    this.removeChildren();
     this._kind = node._kind;
     this._symbolValue = node._symbolValue;
     this._stringValue = node._stringValue;
     this._numberValue = node._numberValue;
+    this.removeChildren();
+    this.appendChildrenFrom(node);
+  }
 
-    while (node._firstChild !== null) {
-      this.appendChild(node._firstChild.remove());
-    }
+  becomeEmpty(): void {
+    this.removeChildren();
+    this._kind = Kind.Empty;
+    this._symbolValue = null;
+    this._stringValue = null;
+    this._numberValue = 0;
   }
 
   becomeUndefined(): void {
@@ -253,11 +266,45 @@ export class Node {
     return this;
   }
 
+  insertBefore(after: Node, before: Node): Node {
+    if (before !== null) {
+      assert(before !== this);
+      assert(after !== this);
+      assert(before !== after);
+      assert(before._parent === null);
+      assert(before._previousSibling === null);
+      assert(before._nextSibling === null);
+      assert(after === null || after._parent === this);
+
+      if (after === null) {
+        return this.appendChild(before);
+      }
+
+      before._parent = this;
+      before._previousSibling = after._previousSibling;
+      before._nextSibling = after;
+
+      if (after._previousSibling !== null) {
+        assert(after === after._previousSibling._nextSibling);
+        after._previousSibling._nextSibling = before
+      }
+
+      else {
+        assert(after === this._firstChild);
+        this._firstChild = before;
+      }
+
+      after._previousSibling = before;
+    }
+
+    return this;
+  }
+
   remove(): Node {
     assert(this._parent !== null);
 
     if (this._previousSibling !== null) {
-      assert(this._previousSibling._nextSibling == this);
+      assert(this._previousSibling._nextSibling === this);
       this._previousSibling._nextSibling = this._nextSibling;
     } else {
       assert(this._parent._firstChild === this);
@@ -279,8 +326,16 @@ export class Node {
   }
 
   removeChildren(): void {
-    while (this._firstChild !== null) {
+    while (this.hasChildren()) {
       this._firstChild.remove();
+    }
+  }
+
+  appendChildrenFrom(node: Node): void {
+    assert(node !== this);
+
+    while (node.hasChildren()) {
+      this.appendChild(node.firstChild().remove());
     }
   }
 
@@ -576,21 +631,21 @@ export class Node {
   forSetup(): Node {
     assert(this._kind === Kind.For);
     assert(this.childCount() === 4);
-    assert(Kind.isExpression(this._firstChild._kind) || this._firstChild._kind == Kind.Empty || this._firstChild._kind == Kind.Variables);
+    assert(Kind.isExpression(this._firstChild._kind) || this._firstChild._kind === Kind.Empty || this._firstChild._kind === Kind.Variables);
     return this._firstChild;
   }
 
   forTest(): Node {
     assert(this._kind === Kind.For);
     assert(this.childCount() === 4);
-    assert(Kind.isExpression(this._firstChild._nextSibling._kind) || this._firstChild._nextSibling._kind == Kind.Empty);
+    assert(Kind.isExpression(this._firstChild._nextSibling._kind) || this._firstChild._nextSibling._kind === Kind.Empty);
     return this._firstChild._nextSibling;
   }
 
   forUpdate(): Node {
     assert(this._kind === Kind.For);
     assert(this.childCount() === 4);
-    assert(Kind.isExpression(this._lastChild._previousSibling._kind) || this._lastChild._previousSibling._kind == Kind.Empty);
+    assert(Kind.isExpression(this._lastChild._previousSibling._kind) || this._lastChild._previousSibling._kind === Kind.Empty);
     return this._lastChild._previousSibling;
   }
 
@@ -604,7 +659,7 @@ export class Node {
   forInSetup(): Node {
     assert(this._kind === Kind.ForIn);
     assert(this.childCount() === 3);
-    assert(Kind.isExpression(this._firstChild._kind) || this._firstChild._kind == Kind.Variable);
+    assert(Kind.isExpression(this._firstChild._kind) || this._firstChild._kind === Kind.Variable);
     return this._firstChild;
   }
 
@@ -830,12 +885,16 @@ export class Node {
     return this._kind === Kind.Undefined;
   }
 
-  isTrue(): boolean {
-    return this._kind === Kind.Boolean && this._numberValue === 1;
+  isEmpty(): boolean {
+    return this._kind === Kind.Empty;
   }
 
-  isFalse(): boolean {
-    return this._kind === Kind.Boolean && this._numberValue === 0;
+  isTruthy(): boolean {
+    return this.isLiteral() && this.asBoolean();
+  }
+
+  isFalsy(): boolean {
+    return this.isLiteral() && !this.asBoolean();
   }
 
   hasSideEffects(): boolean {
@@ -848,6 +907,33 @@ export class Node {
       case Kind.This:
       case Kind.Undefined: {
         return false;
+      }
+
+      case Kind.Complement:
+      case Kind.Negative:
+      case Kind.Not:
+      case Kind.Positive:
+      case Kind.TypeOf:
+      case Kind.Void: {
+        return this.unaryValue().hasSideEffects();
+      }
+
+      case Kind.Array: {
+        for (let child = this._firstChild; child !== null; child = child._nextSibling) {
+          if (child.hasSideEffects()) {
+            return false;
+          }
+        }
+        return true;
+      }
+
+      case Kind.Object: {
+        for (let child = this._firstChild; child !== null; child = child._nextSibling) {
+          if (child.propertyValue().hasSideEffects()) {
+            return false;
+          }
+        }
+        return true;
       }
 
       default: {
