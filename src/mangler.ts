@@ -42,7 +42,17 @@ function mangleUnusedExpression(node: Node): void {
     case Kind.BitwiseOr:
     case Kind.BitwiseXor:
     case Kind.Divide:
+    case Kind.Equal:
+    case Kind.EqualStrict:
+    case Kind.GreaterThan:
+    case Kind.GreaterThanEqual:
+    case Kind.In:
+    case Kind.InstanceOf:
+    case Kind.LessThan:
+    case Kind.LessThanEqual:
     case Kind.Multiply:
+    case Kind.NotEqual:
+    case Kind.NotEqualStrict:
     case Kind.Remainder:
     case Kind.ShiftLeft:
     case Kind.ShiftRight:
@@ -70,6 +80,16 @@ function mangleUnusedExpression(node: Node): void {
       if (!result.hasChildren()) node.becomeUndefined();
       else if (result.hasOneChild()) node.become(result.firstChild().remove());
       else node.become(result);
+      break;
+    }
+
+    case Kind.LogicalAnd:
+    case Kind.LogicalOr: {
+      // "x() || y" => "x()"
+      // "x() && y" => "x()"
+      if (!node.binaryRight().hasSideEffects()) {
+        node.become(node.binaryLeft().remove());
+      }
       break;
     }
   }
@@ -194,17 +214,19 @@ export function mangle(node: Node): void {
       }
 
       else if (node.ifTrue().kind() === Kind.Expression) {
-        let whenTrue = node.ifTrue();
+        let whenTrue = node.ifTrue().expressionValue().remove();
 
         // "if (!a) b;" => "a || b;"
         if (test.kind() === Kind.Not) {
-          node.become(Node.createExpression(Node.createBinary(Kind.LogicalOr, test.unaryValue().remove(), whenTrue.expressionValue().remove())));
+          node.become(Node.createExpression(Node.createBinary(Kind.LogicalOr, test.unaryValue().remove(), whenTrue)));
         }
 
         // "if (a) b;" => "a && b;"
         else {
-          node.become(Node.createExpression(Node.createBinary(Kind.LogicalAnd, test.remove(), whenTrue.expressionValue().remove())));
+          node.become(Node.createExpression(Node.createBinary(Kind.LogicalAnd, test.remove(), whenTrue)));
         }
+
+        mangle(node);
       }
 
       break;

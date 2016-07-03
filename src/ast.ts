@@ -972,6 +972,10 @@ export class Node {
       }
 
       default: {
+        if (Kind.isBinary(this._kind)) {
+          return this.binaryLeft().hasSideEffects() || this.binaryRight().hasSideEffects();
+        }
+
         return true;
       }
     }
