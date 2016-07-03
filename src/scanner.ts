@@ -27,6 +27,31 @@ class ScanContext {
     }
 
     switch (node.kind()) {
+      case Kind.Break: {
+        let symbol = node.breakLabel();
+        if (symbol !== null) {
+          symbol.recordRead(node);
+          this._recordSymbol(symbol);
+        }
+        break;
+      }
+
+      case Kind.Continue: {
+        let symbol = node.continueLabel();
+        if (symbol !== null) {
+          symbol.recordRead(node);
+          this._recordSymbol(symbol);
+        }
+        break;
+      }
+
+      case Kind.Label: {
+        let symbol = node.labelSymbol();
+        symbol.recordWrite(node);
+        this._recordSymbol(symbol);
+        break;
+      }
+
       case Kind.Identifier: {
         let symbol = node.identifierSymbol();
         symbol.recordRead(node);

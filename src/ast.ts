@@ -161,17 +161,23 @@ export class Symbol {
   }
 
   recordRead(node: Node): void {
-    assert(node.kind() == Kind.Identifier);
+    assert(
+      node.kind() == Kind.Break ||
+      node.kind() == Kind.Continue ||
+      node.kind() == Kind.Identifier
+    );
     this._reads.push(node);
   }
 
   recordWrite(node: Node): void {
     assert(
-      node.kind() == Kind.Function ||
-      node.kind() == Kind.Property ||
-      node.kind() == Kind.Variable ||
+      Kind.isBinaryAssign(node.kind()) ||
       Kind.isUnaryAssign(node.kind()) ||
-      Kind.isBinaryAssign(node.kind()));
+      node.kind() == Kind.Function ||
+      node.kind() == Kind.Label ||
+      node.kind() == Kind.Property ||
+      node.kind() == Kind.Variable
+    );
     this._writes.push(node);
   }
 }
