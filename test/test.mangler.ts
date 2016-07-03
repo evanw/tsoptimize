@@ -6,15 +6,21 @@ import * as mangler from '../src/mangler';
 import * as ts from 'typescript';
 
 function check(input: string, expectedNormal: string, expectedMinified: string): void {
-  let program = helpers.createProgram({'input.ts': input}, {noImplicitAny: true});
+  let program = helpers.createProgram({'input.ts': input}, {
+    noImplicitAny: true,
+  });
+
   let diagnostics = ts.getPreEmitDiagnostics(program).map(diagnostic => {
     let {line, character} = diagnostic.file.getLineAndCharacterOfPosition(diagnostic.start);
     let message = ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n');
     return `${diagnostic.file.fileName}:${line + 1}:${character + 1}: ${message}`;
   }).join('\n');
+
   let modules = lowering.lower(program);
   assert.strictEqual(modules.length, 1);
+
   mangler.mangle(modules[0]);
+
   let outputNormal = emitter.emit(modules[0], emitter.Emit.Normal);
   let outputMinified = emitter.emit(modules[0], emitter.Emit.Minified);
 
@@ -51,10 +57,12 @@ it('mangler: strings', function() {
     'this.x = [0 + "", false + "", "" + true, "" + null, void 0 + ""];' +
     'this.x = ["" + x + "a", "a" + x + "", "a" + x + "b", `${x}${x}`, `${x}a${x}`];' +
     'this.x = [0 + ("a" + x), "a" + (0 + x), (x + "a") + 0, (x + 0) + "a", ("" + x) + 0, 0 + (x + "")];',
+
     'var x;\n' +
     'this.x = ["0", "false", "true", "null", "undefined"];\n' +
     'this.x = [x + "a", "a" + x, "a" + x + "b", "" + x + x, x + "a" + x];\n' +
     'this.x = ["0a" + x, "a" + (0 + x), x + "a0", x + 0 + "a", x + "0", "0" + x];',
+
     'var x;' +
     'this.x=["0","false","true","null","undefined"];' +
     'this.x=[x+"a","a"+x,"a"+x+"b",""+x+x,x+"a"+x];' +

@@ -5,14 +5,19 @@ import * as lowering from '../src/lowering';
 import * as ts from 'typescript';
 
 function check(input: string, expectedNormal: string, expectedMinified: string): void {
-  let program = helpers.createProgram({'input.ts': input}, {noImplicitAny: true});
+  let program = helpers.createProgram({'input.ts': input}, {
+    noImplicitAny: true,
+  });
+
   let diagnostics = ts.getPreEmitDiagnostics(program).map(diagnostic => {
     let {line, character} = diagnostic.file.getLineAndCharacterOfPosition(diagnostic.start);
     let message = ts.flattenDiagnosticMessageText(diagnostic.messageText, '\n');
     return `${diagnostic.file.fileName}:${line + 1}:${character + 1}: ${message}`;
   }).join('\n');
+
   let modules = lowering.lower(program);
   assert.strictEqual(modules.length, 1);
+
   let outputNormal = emitter.emit(modules[0], emitter.Emit.Normal);
   let outputMinified = emitter.emit(modules[0], emitter.Emit.Minified);
 
@@ -49,6 +54,7 @@ it('emitter: general', function() {
     '  [a + b, a - b, a * b, a / b, a % b, a & b, a | b, a ^ b, a << b, a >> b];\n' +
     '  [a = b, a += b, a -= b, a *= b, a /= b, a %= b, a &= b, a |= b, a ^= b, a <<= b, a >>= b];\n' +
     '}',
+
     'function test(a, b) {\n' +
     '  [false, true, null, this, 0, 1.5, 10000000000, "abc\\n", "abc\\n", "abc\\n", "(" + a + " " + b + ")", /abc\\n/g];\n' +
     '  do\n' +
@@ -95,6 +101,7 @@ it('emitter: general', function() {
     '  [a + b, a - b, a * b, a / b, a % b, a & b, a | b, a ^ b, a << b, a >> b];\n' +
     '  [a = b, a += b, a -= b, a *= b, a /= b, a %= b, a &= b, a |= b, a ^= b, a <<= b, a >>= b];\n' +
     '}',
+
     'function test(a,b){' +
     '[!1,!0,null,this,0,1.5,1e10,"abc\\n","abc\\n","abc\\n","("+a+" "+b+")",/abc\\n/g];' +
     'do break;while(!0);' +
@@ -128,8 +135,10 @@ it('emitter: numbers', function() {
   check(
     '[0..toString, 0.5.toString, -0.5.toString, (-0.5).toString, 10.5.toString];' +
     '[1e100.toString, -1e100.toString, (-1e100).toString, 1.5e100.toString, -1.5e100.toString, (-1.5e100).toString];',
+
     '[0 .toString, 0.5.toString, -0.5.toString, (-0.5).toString, 10.5.toString];\n' +
     '[1e+100.toString, -1e+100.toString, (-1e+100).toString, 1.5e+100.toString, -1.5e+100.toString, (-1.5e+100).toString];',
+
     '[0 .toString,.5.toString,-.5.toString,(-.5).toString,10.5.toString];' +
     '[1e100.toString,-1e100.toString,(-1e100).toString,1.5e100.toString,-1.5e100.toString,(-1.5e100).toString];'
   );
@@ -146,6 +155,7 @@ it('emitter: unary whitespace', function() {
     '[x++ - x, x + -x, x + --x, x * x++ - x, x + -x * x, x + --x * x];' +
     '[x-- + x, x - +x, x - ++x, x * x-- + x, x - +x * x, x - ++x * x];' +
     '[x < !--x, x < ~--x, x > !--x];',
+
     'var x;\n' +
     '[+ +x, +-x, -+x, - -x, + ++x, +--x, -++x, - --x];\n' +
     '[x++ + x, x + +x, x + ++x, x * x++ + x, x + +x * x, x + ++x * x];\n' +
@@ -153,6 +163,7 @@ it('emitter: unary whitespace', function() {
     '[x++ - x, x + -x, x + --x, x * x++ - x, x + -x * x, x + --x * x];\n' +
     '[x-- + x, x - +x, x - ++x, x * x-- + x, x - +x * x, x - ++x * x];\n' +
     '[x < !--x, x < ~--x, x > !--x];',
+
     'var x;' +
     '[+ +x,+-x,-+x,- -x,+ ++x,+--x,-++x,- --x];' +
     '[x+++x,x+ +x,x+ ++x,x*x+++x,x+ +x*x,x+ ++x*x];' +
@@ -170,9 +181,11 @@ it('emitter: precedence and parentheses', function() {
     'var x: any;' +
     '[-x + x, -(x + x)];' +
     '[(x + x) + x, x + (x + x), x + (x * x), (x + x) * x];',
+
     'var x;\n' +
     '[-x + x, -(x + x)];\n' +
     '[x + x + x, x + (x + x), x + x * x, (x + x) * x];',
+
     'var x;' +
     '[-x+x,-(x+x)];' +
     '[x+x+x,x+(x+x),x+x*x,(x+x)*x];'
