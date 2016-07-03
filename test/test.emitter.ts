@@ -48,7 +48,7 @@ it('emitter: general', function() {
     '  for (var i = 0, j = 10; i < j; i++, j--) ;\n' +
     '  for (x in c) ;\n' +
     '  for (var x in c) ;\n' +
-    '  [i?a:b, test(i, j), (a, b, i, j), , , {a: b, "b ": a, c}, c[a], c.a, a as number];\n' +
+    '  [i?a:b, test(i, j), (a, b, i, j), , , {a: b, "b ": a, c}, c[a], c.a, a as number,,];\n' +
     '  [+a, -a, !a, ~a, --a, ++a, a--, a++, void a, typeof a, delete a];\n' +
     '  [a == b, a != b, a === b, a !== b, a < b, a > b, a <= b, a >= b, a && b, a || b];\n' +
     '  [a + b, a - b, a * b, a / b, a % b, a & b, a | b, a ^ b, a << b, a >> b];\n' +
@@ -95,7 +95,7 @@ it('emitter: general', function() {
     '    ;\n' +
     '  for (var x in c)\n' +
     '    ;\n' +
-    '  [i ? a : b, test(i, j), (a, b, i, j), , , {a: b, "b ": a, c: c}, c[a], c.a, a];\n' +
+    '  [i ? a : b, test(i, j), (a, b, i, j),,, {a: b, "b ": a, c: c}, c[a], c.a, a,,];\n' +
     '  [+a, -a, !a, ~a, --a, ++a, a--, a++, void a, typeof a, delete a];\n' +
     '  [a == b, a != b, a === b, a !== b, a < b, a > b, a <= b, a >= b, a && b, a || b];\n' +
     '  [a + b, a - b, a * b, a / b, a % b, a & b, a | b, a ^ b, a << b, a >> b];\n' +
@@ -120,7 +120,7 @@ it('emitter: general', function() {
     'for(var i=0,j=10;i<j;i++,j--);' +
     'for(x in c);' +
     'for(var x in c);' +
-    '[i?a:b,test(i,j),(a,b,i,j),,,{a:b,"b ":a,c:c},c[a],c.a,a];' +
+    '[i?a:b,test(i,j),(a,b,i,j),,,{a:b,"b ":a,c:c},c[a],c.a,a,,];' +
     '[+a,-a,!a,~a,--a,++a,a--,a++,void a,typeof a,delete a];' +
     '[a==b,a!=b,a===b,a!==b,a<b,a>b,a<=b,a>=b,a&&b,a||b];' +
     '[a+b,a-b,a*b,a/b,a%b,a&b,a|b,a^b,a<<b,a>>b];' +

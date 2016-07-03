@@ -466,8 +466,13 @@ export function emit(root: Node, mode: Emit): string {
       case Kind.Array: {
         out += '[';
         for (let child = node.firstChild(); child !== null; child = child.nextSibling()) {
-          if (child.previousSibling() !== null) out += ',' + space;
-          if (child.kind() !== Kind.Undefined) emit(child, Level.Comma);
+          if (child.isUndefined()) {
+            if (child.previousSibling() !== null) out += ',';
+            if (child.nextSibling() === null) out += ',';
+          } else {
+            if (child.previousSibling() !== null) out += ',' + space;
+            emit(child, Level.Comma);
+          }
         }
         out += ']';
         break;
