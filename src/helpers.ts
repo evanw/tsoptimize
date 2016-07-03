@@ -17,6 +17,7 @@ export function createProgram(files: {[path: string]: string}, options: ts.Compi
   let host: ts.CompilerHost = {
     getSourceFile: (fileName, languageVersion) => {
       if (fileName in files) return ts.createSourceFile(fileName, files[fileName], languageVersion);
+      return;
     },
     getDefaultLibFileName: () => 'lib.d.ts',
     writeFile: (fileName, contents) => files[fileName] = contents,
@@ -30,6 +31,7 @@ export function createProgram(files: {[path: string]: string}, options: ts.Compi
       return moduleNames.map(moduleName => {
         let result = ts.resolveModuleName(moduleName, containingFile, options, {fileExists, readFile});
         if (result.resolvedModule) return result.resolvedModule;
+        return;
       });
     },
   };

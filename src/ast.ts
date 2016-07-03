@@ -120,6 +120,10 @@ export namespace Kind {
     return kind >= Kind.Complement && kind <= Kind.Void;
   }
 
+  export function isUnaryAssign(kind: Kind): boolean {
+    return kind >= Kind.PostfixDecrement && kind >= Kind.PostfixIncrement || kind == Kind.Delete;
+  }
+
   export function isBinary(kind: Kind): boolean {
     return kind >= Kind.Add;
   }
@@ -130,13 +134,45 @@ export namespace Kind {
 }
 
 export class Symbol {
+  private static _nextID = 0;
+  private _id = Symbol._nextID++;
+  private _reads: Node[] = [];
+  private _writes: Node[] = [];
+
   constructor(
     private _name: string
   ) {
   }
 
+  id(): number {
+    return this._id;
+  }
+
   name(): string {
     return this._name;
+  }
+
+  reads(): Node[] {
+    return this._reads;
+  }
+
+  writes(): Node[] {
+    return this._writes;
+  }
+
+  recordRead(node: Node): void {
+    assert(node.kind() == Kind.Identifier);
+    this._reads.push(node);
+  }
+
+  recordWrite(node: Node): void {
+    assert(
+      node.kind() == Kind.Function ||
+      node.kind() == Kind.Property ||
+      node.kind() == Kind.Variable ||
+      Kind.isUnaryAssign(node.kind()) ||
+      Kind.isBinaryAssign(node.kind()));
+    this._writes.push(node);
   }
 }
 
