@@ -6,17 +6,22 @@ function isAddWithStringLiteral(node: Node): boolean {
 }
 
 function mangleStatements(firstChild: Node): void {
-  let child = firstChild;
+  let next = firstChild;
 
-  while (child !== null) {
-    if (child.isEmpty()) {
-      let old = child;
-      child = child.nextSibling();
-      old.remove();
-    }
+  while (next !== null) {
+    let previous = next;
+    next = next.nextSibling();
 
-    else {
-      child = child.nextSibling();
+    switch (previous.kind()) {
+      case Kind.Empty: {
+        previous.remove();
+        break;
+      }
+
+      case Kind.Block: {
+        previous.replaceWithChildren();
+        break;
+      }
     }
   }
 }
@@ -108,10 +113,7 @@ export function mangle(node: Node): void {
 
         // "(a, (b, c), d)" => "(a, b, c, d)"
         if (previous.kind() === Kind.Sequence) {
-          while (previous.hasChildren()) {
-            node.insertBefore(previous, previous.firstChild().remove());
-          }
-          previous.remove();
+          previous.replaceWithChildren();
         }
 
         // "(a, b(), c, d(), e)" => "(b(), d(), e)"

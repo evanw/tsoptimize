@@ -343,6 +343,16 @@ export class Node {
     }
   }
 
+  replaceWithChildren(): void {
+    assert(this._parent !== null);
+
+    while (this.hasChildren()) {
+      this._parent.insertBefore(this, this._firstChild.remove());
+    }
+
+    this.remove();
+  }
+
   ////////////////////////////////////////////////////////////////////////////////
   // Constructors
 
