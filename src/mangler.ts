@@ -75,6 +75,61 @@ function mangleUnusedExpression(node: Node): void {
   }
 }
 
+function mangleConditional(node: Node): void {
+  let test = node.conditionalTest();
+
+  // "1 ? a : b" => "a"
+  if (test.isTruthy()) {
+    node.become(node.conditionalTrue().remove());
+  }
+
+  // "0 ? a : b" => "b"
+  else if (test.isFalsy()) {
+    node.become(node.conditionalFalse().remove());
+  }
+
+  else if (node.conditionalTrue().looksTheSameAs(node.conditionalFalse())) {
+    let left = node.conditionalTrue().remove();
+
+    // "a ? b : b" => "b"
+    if (!test.hasSideEffects()) {
+      node.become(left);
+    }
+
+    // "a() ? b : b" => "a(), b"
+    else {
+      mangleUnusedExpression(test.remove());
+      if (test.kind() !== Kind.Sequence) {
+        test = Node.createSequence().appendChild(test);
+      }
+      test.appendChild(left);
+      node.become(test);
+    }
+  }
+
+  else {
+    // "!a ? b : c" => "a ? c : b"
+    if (test.kind() === Kind.Not) {
+      test.become(test.unaryValue().remove());
+      node.appendChild(node.conditionalTrue().remove());
+    }
+
+    if (!test.hasSideEffects()) {
+      // "a ? a : b" => "a || b"
+      if (test.looksTheSameAs(node.conditionalTrue())) {
+        let right = node.conditionalFalse().remove();
+        node.become(Node.createBinary(Kind.LogicalOr, test.remove(), right));
+      }
+
+      // "a ? b : a" => "a && b"
+      else if (test.looksTheSameAs(node.conditionalFalse())) {
+        let right = node.conditionalTrue().remove();
+        node.become(Node.createBinary(Kind.LogicalAnd, test.remove(), right));
+      }
+    }
+  }
+}
+
 export function mangle(node: Node): void {
   let kind = node.kind();
 
@@ -90,6 +145,68 @@ export function mangle(node: Node): void {
 
     case Kind.Block: {
       mangleStatements(node.firstChild());
+      break;
+    }
+
+    case Kind.If: {
+      let test = node.ifTest();
+
+      // "if (1) a; else b;" => "a;"
+      if (test.isTruthy()) {
+        node.become(node.ifTrue().remove());
+      }
+
+      // "if (0) a; else b;" => "b;"
+      else if (test.isFalsy()) {
+        node.become(node.ifFalse().remove());
+      }
+
+      else if (!node.ifFalse().isEmpty()) {
+        // "if (!a) b; else c;" => "if (a) c; else b;"
+        if (test.kind() === Kind.Not) {
+          test.become(test.unaryValue().remove());
+          node.appendChild(node.ifTrue().remove());
+        }
+
+        let whenTrue = node.ifTrue();
+        let whenFalse = node.ifFalse();
+
+        // "if (a) b; else c;" => "a ? b : c;"
+        if (whenTrue.kind() === Kind.Expression && whenFalse.kind() === Kind.Expression) {
+          let value = Node.createConditional(test.remove(), whenTrue.expressionValue().remove(), whenFalse.expressionValue().remove());
+          mangleConditional(value);
+          node.become(Node.createExpression(value));
+        }
+
+        // "if (a) return b; else return c;" => "return a ? b : c;"
+        else if (whenTrue.kind() === Kind.Return && whenFalse.kind() === Kind.Return) {
+          let value = Node.createConditional(test.remove(), whenTrue.returnValue().remove(), whenFalse.returnValue().remove());
+          mangleConditional(value);
+          node.become(Node.createReturn(value));
+        }
+
+        // "if (a) throw b; else throw c;" => "throw a ? b : c;"
+        else if (whenTrue.kind() === Kind.Throw && whenFalse.kind() === Kind.Throw) {
+          let value = Node.createConditional(test.remove(), whenTrue.throwValue().remove(), whenFalse.throwValue().remove());
+          mangleConditional(value);
+          node.become(Node.createThrow(value));
+        }
+      }
+
+      else if (node.ifTrue().kind() === Kind.Expression) {
+        let whenTrue = node.ifTrue();
+
+        // "if (!a) b;" => "a || b;"
+        if (test.kind() === Kind.Not) {
+          node.become(Node.createExpression(Node.createBinary(Kind.LogicalOr, test.unaryValue().remove(), whenTrue.expressionValue().remove())));
+        }
+
+        // "if (a) b;" => "a && b;"
+        else {
+          node.become(Node.createExpression(Node.createBinary(Kind.LogicalAnd, test.remove(), whenTrue.expressionValue().remove())));
+        }
+      }
+
       break;
     }
 
@@ -154,58 +271,7 @@ export function mangle(node: Node): void {
     }
 
     case Kind.Conditional: {
-      let test = node.conditionalTest();
-
-      // "1 ? a : b" => "a"
-      if (test.isTruthy()) {
-        node.become(node.conditionalTrue().remove());
-      }
-
-      // "0 ? a : b" => "b"
-      else if (test.isFalsy()) {
-        node.become(node.conditionalFalse().remove());
-      }
-
-      else if (node.conditionalTrue().looksTheSameAs(node.conditionalFalse())) {
-        let left = node.conditionalTrue().remove();
-
-        // "a ? b : b" => "b"
-        if (!test.hasSideEffects()) {
-          node.become(left);
-        }
-
-        // "a() ? b : b" => "a(), b"
-        else {
-          mangleUnusedExpression(test.remove());
-          if (test.kind() !== Kind.Sequence) {
-            test = Node.createSequence().appendChild(test);
-          }
-          test.appendChild(left);
-          node.become(test);
-        }
-      }
-
-      else {
-        // "!a ? b : c" => "a ? c : b"
-        if (test.kind() === Kind.Not) {
-          test.become(test.unaryValue().remove());
-          node.appendChild(node.conditionalTrue().remove());
-        }
-
-        if (!test.hasSideEffects()) {
-          // "a ? a : b" => "a || b"
-          if (test.looksTheSameAs(node.conditionalTrue())) {
-            let right = node.conditionalFalse().remove();
-            node.become(Node.createBinary(Kind.LogicalOr, test.remove(), right));
-          }
-
-          // "a ? b : a" => "a && b"
-          else if (test.looksTheSameAs(node.conditionalFalse())) {
-            let right = node.conditionalTrue().remove();
-            node.become(Node.createBinary(Kind.LogicalAnd, test.remove(), right));
-          }
-        }
-      }
+      mangleConditional(node);
       break;
     }
 
