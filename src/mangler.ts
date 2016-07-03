@@ -155,15 +155,54 @@ export function mangle(node: Node): void {
       let test = node.conditionalTest();
 
       // "1 ? a : b" => "a"
-      if (test.isTruthy()) node.become(node.conditionalTrue().remove());
+      if (test.isTruthy()) {
+        node.become(node.conditionalTrue().remove());
+      }
 
       // "0 ? a : b" => "b"
-      else if (test.isFalsy()) node.become(node.conditionalFalse().remove());
+      else if (test.isFalsy()) {
+        node.become(node.conditionalFalse().remove());
+      }
 
-      // "!a ? b : c" => "a ? c : b"
-      else if (test.kind() === Kind.Not) {
-        test.become(test.unaryValue().remove());
-        node.appendChild(node.conditionalTrue().remove());
+      else if (node.conditionalTrue().looksTheSameAs(node.conditionalFalse())) {
+        let left = node.conditionalTrue().remove();
+
+        // "a ? b : b" => "b"
+        if (!test.hasSideEffects()) {
+          node.become(left);
+        }
+
+        // "a() ? b : b" => "a(), b"
+        else {
+          mangleUnusedExpression(test.remove());
+          if (test.kind() !== Kind.Sequence) {
+            test = Node.createSequence().appendChild(test);
+          }
+          test.appendChild(left);
+          node.become(test);
+        }
+      }
+
+      else {
+        // "!a ? b : c" => "a ? c : b"
+        if (test.kind() === Kind.Not) {
+          test.become(test.unaryValue().remove());
+          node.appendChild(node.conditionalTrue().remove());
+        }
+
+        if (!test.hasSideEffects()) {
+          // "a ? a : b" => "a || b"
+          if (test.looksTheSameAs(node.conditionalTrue())) {
+            let right = node.conditionalFalse().remove();
+            node.become(Node.createBinary(Kind.LogicalOr, test.remove(), right));
+          }
+
+          // "a ? b : a" => "a && b"
+          else if (test.looksTheSameAs(node.conditionalFalse())) {
+            let right = node.conditionalTrue().remove();
+            node.become(Node.createBinary(Kind.LogicalAnd, test.remove(), right));
+          }
+        }
       }
       break;
     }

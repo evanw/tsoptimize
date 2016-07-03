@@ -124,3 +124,51 @@ it('mangler: boolean conditional logic', function() {
     'x(x?3:2);'
   );
 });
+
+it('mangler: boolean identical appearance logic', function() {
+  this.timeout(0);
+
+  check(
+    'var x: any;' +
+    'x(x ? x : 0);' +
+    'x(!x ? 0 : x);' +
+    'x(x() ? x() : 0);' +
+    'x(!x() ? 0 : x());' +
+    'x(x ? 0 : x);' +
+    'x(!x ? x : 0);' +
+    'x(x() ? 0 : x());' +
+    'x(!x() ? x() : 0);' +
+    'x(x ? x : x);' +
+    'x(!x ? x : x);' +
+    'x(x() ? x() : x());' +
+    'x(!x() ? x() : x());',
+
+    'var x;\n' +
+    'x(x || 0);\n' +
+    'x(x || 0);\n' +
+    'x(x() ? x() : 0);\n' +
+    'x(x() ? x() : 0);\n' +
+    'x(x && 0);\n' +
+    'x(x && 0);\n' +
+    'x(x() ? 0 : x());\n' +
+    'x(x() ? 0 : x());\n' +
+    'x(x);\n' +
+    'x(x);\n' +
+    'x((x(), x()));\n' +
+    'x((x(), x()));',
+
+    'var x;' +
+    'x(x||0);' +
+    'x(x||0);' +
+    'x(x()?x():0);' +
+    'x(x()?x():0);' +
+    'x(x&&0);' +
+    'x(x&&0);' +
+    'x(x()?0:x());' +
+    'x(x()?0:x());' +
+    'x(x);' +
+    'x(x);' +
+    'x((x(),x()));' +
+    'x((x(),x()));'
+  );
+});

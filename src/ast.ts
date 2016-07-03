@@ -4,6 +4,10 @@ function assert(truth: boolean): void {
   }
 }
 
+function equalOrBothNaN(left: number, right: number): boolean {
+  return left === right || left !== left && right !== right;
+}
+
 export enum Kind {
   Module,
   Property,
@@ -940,6 +944,33 @@ export class Node {
         return true;
       }
     }
+  }
+
+  looksTheSameAs(node: Node): boolean {
+    assert(this !== node);
+    assert(Kind.isExpression(this._kind));
+    assert(Kind.isExpression(node._kind));
+
+    if (this._kind !== node._kind ||
+        this._stringValue !== node._stringValue ||
+        this._symbolValue !== node._symbolValue ||
+        !equalOrBothNaN(this._numberValue, node._numberValue)) {
+      return false;
+    }
+
+    let left = this._firstChild;
+    let right = node._firstChild;
+
+    while (left !== null && right !== null) {
+      if (!left.looksTheSameAs(right)) {
+        return false;
+      }
+
+      left = left._nextSibling;
+      right = right._nextSibling;
+    }
+
+    return left === null && right === null;
   }
 
   isLiteral(): boolean {
