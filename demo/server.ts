@@ -17,7 +17,7 @@ function runServer(): void {
   let server = http.createServer((req, res) => {
     if (req.method === 'GET' && req.url === '/') {
       res.writeHead(200, {'Content-Type': 'text/html'});
-      res.end(fs.readFileSync(__dirname + '/demo.server.html'));
+      res.end(fs.readFileSync(__dirname + '/index.html'));
     }
 
     else if (req.method === 'POST' && req.url === '/') {
