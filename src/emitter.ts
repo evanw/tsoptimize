@@ -559,8 +559,11 @@ export function emit(root: Node, mode: Emit): string {
           text = value.toString();
         }
 
-        let wrap = text[0] === '-' && level >= Level.Prefix;
+        let isNegative = text[0] === '-';
+        let wrap = isNegative && level >= Level.Prefix;
         if (wrap) out += '(';
+        else if (isNegative) emitSpaceBeforeOperator(Kind.Negative);
+        else emitSpaceBeforeIdentifier();
         out += text;
         if (wrap) out += ')';
         else if (level >= Level.Member && !/[.eE]/.test(text)) out += ' ';

@@ -121,7 +121,7 @@ export namespace Kind {
   }
 
   export function isUnaryAssign(kind: Kind): boolean {
-    return kind >= Kind.PostfixDecrement && kind >= Kind.PostfixIncrement || kind == Kind.Delete;
+    return kind >= Kind.PostfixDecrement && kind <= Kind.PostfixIncrement || kind == Kind.Delete;
   }
 
   export function isBinary(kind: Kind): boolean {
@@ -136,8 +136,6 @@ export namespace Kind {
 export class Symbol {
   private static _nextID = 0;
   private _id = Symbol._nextID++;
-  private _reads: Node[] = [];
-  private _writes: Node[] = [];
 
   constructor(
     private _name: string
@@ -150,35 +148,6 @@ export class Symbol {
 
   name(): string {
     return this._name;
-  }
-
-  reads(): Node[] {
-    return this._reads;
-  }
-
-  writes(): Node[] {
-    return this._writes;
-  }
-
-  recordRead(node: Node): void {
-    assert(
-      node.kind() == Kind.Break ||
-      node.kind() == Kind.Continue ||
-      node.kind() == Kind.Identifier
-    );
-    this._reads.push(node);
-  }
-
-  recordWrite(node: Node): void {
-    assert(
-      Kind.isBinaryAssign(node.kind()) ||
-      Kind.isUnaryAssign(node.kind()) ||
-      node.kind() == Kind.Function ||
-      node.kind() == Kind.Label ||
-      node.kind() == Kind.Property ||
-      node.kind() == Kind.Variable
-    );
-    this._writes.push(node);
   }
 }
 
@@ -237,9 +206,19 @@ export class Node {
     return count;
   }
 
+  clone(): Node {
+    let node = new Node(this._kind);
+    node._symbolValue = this._symbolValue;
+    node._stringValue = this._stringValue;
+    node._numberValue = this._numberValue;
+    for (let child = this._firstChild; child !== null; child = child._nextSibling) {
+      node.appendChild(child.clone());
+    }
+    return node;
+  }
+
   become(node: Node): void {
     assert(node !== this && node._parent === null);
-
     this._kind = node._kind;
     this._symbolValue = node._symbolValue;
     this._stringValue = node._stringValue;
@@ -401,7 +380,7 @@ export class Node {
   static createVariable(symbol: Symbol, value: Node): Node {
     assert(symbol !== null);
     assert(Kind.isExpression(value._kind));
-    var node = new Node(Kind.Variable);
+    let node = new Node(Kind.Variable);
     node._symbolValue = symbol;
     return node.appendChild(value);
   }

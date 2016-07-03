@@ -1,23 +1,71 @@
 import {Kind, Node, Symbol} from './ast';
 
-class ScanContext {
-  private _symbols: {[id: number]: Symbol} = {};
+class ScanInfo {
+  reads: Node[] = [];
+  writes: Node[] = [];
 
-  forEachSymbol(callback: (symbol: Symbol) => void): void {
-    let symbols = this._symbols;
-    for (var id in symbols) {
-      callback(symbols[id]);
+  constructor(
+    public symbol: Symbol
+  ) {
+  }
+}
+
+export class Scanner {
+  private _info: {[id: number]: ScanInfo} = {};
+
+  inlineConstantVariables(): void {
+    let map = this._info;
+
+    for (let id in map) {
+      let info = map[id];
+
+      // This symbol must have a single definition
+      if (info.writes.length !== 1) {
+        continue;
+      }
+
+      // This symbol must be a variable
+      let write = info.writes[0];
+      if (write.kind() !== Kind.Variable || write.parent().kind() !== Kind.Variables) {
+        continue;
+      }
+
+      // This symbol must be initialized to a constant
+      let value = write.variableValue().clone();
+      if (!value.isLiteral()) {
+        continue;
+      }
+
+      // Inline all reads
+      let count = 0;
+      for (let read of info.reads) {
+        if (read.kind() === Kind.Identifier) {
+          read.become(value);
+          count++;
+        }
+      }
+
+      // Remove the variable now that it's unused
+      if (count === info.reads.length) {
+        let parent = write.parent();
+        write.remove();
+
+        // Make sure not to leave a "var" without any variables
+        if (!parent.hasChildren()) {
+          parent.becomeEmpty();
+        }
+      }
     }
   }
 
   scan(node: Node): void {
     if (Kind.isUnaryAssign(node.kind())) {
-      this._recordWrite(node, node.unaryValue());
+      this._scanAndRecordWrite(node, node.unaryValue());
       return;
     }
 
     if (Kind.isBinaryAssign(node.kind())) {
-      this._recordWrite(node, node.binaryLeft());
+      this._scanAndRecordWrite(node, node.binaryLeft());
       this.scan(node.binaryRight());
       return;
     }
@@ -27,78 +75,73 @@ class ScanContext {
     }
 
     switch (node.kind()) {
+      ////////////////////////////////////////////////////////////////////////////////
+      // Reads
+
       case Kind.Break: {
         let symbol = node.breakLabel();
-        if (symbol !== null) {
-          symbol.recordRead(node);
-          this._recordSymbol(symbol);
-        }
+        if (symbol !== null) this._infoForSymbol(symbol).reads.push(node);
         break;
       }
 
       case Kind.Continue: {
         let symbol = node.continueLabel();
-        if (symbol !== null) {
-          symbol.recordRead(node);
-          this._recordSymbol(symbol);
-        }
+        if (symbol !== null) this._infoForSymbol(symbol).reads.push(node);
+        break;
+      }
+
+      case Kind.Identifier: {
+        this._infoForSymbol(node.identifierSymbol()).reads.push(node);
+        break;
+      }
+
+      case Kind.Member: {
+        this._infoForSymbol(node.memberSymbol()).reads.push(node);
+        break;
+      }
+
+      ////////////////////////////////////////////////////////////////////////////////
+      // Writes
+
+      case Kind.Function: {
+        this._infoForSymbol(node.functionSymbol()).writes.push(node);
         break;
       }
 
       case Kind.Label: {
-        let symbol = node.labelSymbol();
-        symbol.recordWrite(node);
-        this._recordSymbol(symbol);
-        break;
-      }
-
-      case Kind.Identifier: {
-        let symbol = node.identifierSymbol();
-        symbol.recordRead(node);
-        this._recordSymbol(symbol);
-        break;
-      }
-
-      case Kind.Function: {
-        let symbol = node.functionSymbol();
-        symbol.recordWrite(node);
-        this._recordSymbol(symbol);
+        this._infoForSymbol(node.labelSymbol()).writes.push(node);
         break;
       }
 
       case Kind.Property: {
-        let symbol = node.propertyKey();
-        symbol.recordWrite(node);
-        this._recordSymbol(symbol);
+        this._infoForSymbol(node.propertyKey()).writes.push(node);
         break;
       }
 
       case Kind.Variable: {
-        let symbol = node.propertyKey();
-        symbol.recordWrite(node);
-        this._recordSymbol(symbol);
+        this._infoForSymbol(node.variableSymbol()).writes.push(node);
         break;
       }
     }
   }
 
-  private _recordSymbol(symbol: Symbol): void {
+  private _infoForSymbol(symbol: Symbol): ScanInfo {
     let id = symbol.id();
-    if (this._symbols[id] !== symbol) {
-      this._symbols[id] = symbol;
-    }
+    let info = this._info[id];
+    if (info == null) this._info[id] = info = new ScanInfo(symbol);
+    return info;
   }
 
-  private _recordWrite(parent: Node, target: Node): void {
+  private _scanAndRecordWrite(parent: Node, target: Node): void {
     switch (target.kind()) {
       case Kind.Identifier: {
-        target.identifierSymbol().recordWrite(parent);
+        this._infoForSymbol(target.identifierSymbol()).writes.push(parent);
         break;
       }
 
       case Kind.Member: {
         this.scan(target.memberValue());
-        target.memberSymbol().recordWrite(parent);
+        this._infoForSymbol(target.memberSymbol()).writes.push(parent);
         break;
       }
 
