@@ -814,6 +814,22 @@ export class Node {
   ////////////////////////////////////////////////////////////////////////////////
   // Helpers
 
+  isBoolean(): boolean {
+    return this._kind === Kind.Boolean;
+  }
+
+  isNumber(): boolean {
+    return this._kind === Kind.Number;
+  }
+
+  isString(): boolean {
+    return this._kind === Kind.String;
+  }
+
+  isUndefined(): boolean {
+    return this._kind === Kind.Undefined;
+  }
+
   isTrue(): boolean {
     return this._kind === Kind.Boolean && this._numberValue === 1;
   }

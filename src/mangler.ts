@@ -1,5 +1,10 @@
 import {Kind, Node} from './ast';
 
+function isAddWithStringLiteral(node: Node): boolean {
+  return node.isString() || node.kind() === Kind.Add && (
+    isAddWithStringLiteral(node.binaryLeft()) || isAddWithStringLiteral(node.binaryRight()));
+}
+
 export function mangle(node: Node): void {
   let kind = node.kind();
 
@@ -33,6 +38,57 @@ export function mangle(node: Node): void {
       break;
     }
 
+    case Kind.Add: {
+      let left = node.binaryLeft();
+      let right = node.binaryRight();
+
+      if (left.isLiteral() && right.isLiteral()) {
+        if (left.isString() || right.isString()) {
+          node.becomeString(left.asString() + right.asString());
+        } else {
+          node.becomeNumber(left.asNumber() + right.asNumber());
+        }
+      }
+
+      // ("a" + x) + "" => "a" + x
+      // (x + "a") + "" => x + "a"
+      else if (right.isString() && right.stringValue() === '' && isAddWithStringLiteral(left)) {
+        node.become(left.remove());
+      }
+
+      // "" + ("a" + x) => "a" + x
+      // "" + (x + "a") => x + "a"
+      else if (left.isString() && left.stringValue() === '' && isAddWithStringLiteral(right)) {
+        node.become(right.remove());
+      }
+
+      // (x + "a") + 0 => x + "a0"
+      else if (left.kind() === Kind.Add && right.isLiteral() && left.binaryRight().isString()) {
+        left.binaryRight().becomeString(left.binaryRight().stringValue() + right.asString());
+        node.become(left.remove());
+      }
+
+      // 0 + ("a" + x) => "0a" + x
+      else if (right.kind() === Kind.Add && left.isLiteral() && right.binaryLeft().isString()) {
+        right.binaryLeft().becomeString(left.asString() + right.binaryLeft().stringValue());
+        node.become(right.remove());
+      }
+
+      // ("" + x) + 0 => x + "0"
+      else if (left.kind() === Kind.Add && right.isLiteral() && left.binaryLeft().isString() && left.binaryLeft().stringValue() === '') {
+        left.become(left.binaryRight().remove());
+        right.becomeString(right.asString());
+      }
+
+      // 0 + (x + "") => "0" + x
+      else if (right.kind() === Kind.Add && left.isLiteral() && right.binaryRight().isString() && right.binaryRight().stringValue() === '') {
+        right.become(right.binaryLeft().remove());
+        left.becomeString(left.asString());
+      }
+
+      break;
+    }
+
     default: {
       if (Kind.isUnary(kind)) {
         let value = node.unaryValue();
@@ -53,15 +109,6 @@ export function mangle(node: Node): void {
 
         if (left.isLiteral() && right.isLiteral()) {
           switch (kind) {
-            case Kind.Add: {
-              if (left.kind() == Kind.String || right.kind() == Kind.String) {
-                node.becomeString(left.asString() + right.asString());
-              } else {
-                node.becomeNumber(left.asNumber() + right.asNumber());
-              }
-              break;
-            }
-
             case Kind.Subtract: node.becomeNumber(left.asNumber() - right.asNumber()); break;
             case Kind.Multiply: node.becomeNumber(left.asNumber() * right.asNumber()); break;
             case Kind.Divide: node.becomeNumber(left.asNumber() / right.asNumber()); break;

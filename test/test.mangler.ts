@@ -42,3 +42,22 @@ it('mangler: binary arithmetic', function() {
     'this.x=[8,-2,15,.6,3,1,7,6,96,-2,134217726];'
   );
 });
+
+it('mangler: strings', function() {
+  this.timeout(0);
+
+  check(
+    'var x: any;' +
+    'this.x = [0 + "", false + "", "" + true, "" + null, void 0 + ""];' +
+    'this.x = ["" + x + "a", "a" + x + "", "a" + x + "b", `${x}${x}`, `${x}a${x}`];' +
+    'this.x = [0 + ("a" + x), "a" + (0 + x), (x + "a") + 0, (x + 0) + "a", ("" + x) + 0, 0 + (x + "")];',
+    'var x;\n' +
+    'this.x = ["0", "false", "true", "null", "undefined"];\n' +
+    'this.x = [x + "a", "a" + x, "a" + x + "b", "" + x + x, x + "a" + x];\n' +
+    'this.x = ["0a" + x, "a" + (0 + x), x + "a0", x + 0 + "a", x + "0", "0" + x];',
+    'var x;' +
+    'this.x=["0","false","true","null","undefined"];' +
+    'this.x=[x+"a","a"+x,"a"+x+"b",""+x+x,x+"a"+x];' +
+    'this.x=["0a"+x,"a"+(0+x),x+"a0",x+0+"a",x+"0","0"+x];'
+  );
+});

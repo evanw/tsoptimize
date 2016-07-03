@@ -199,7 +199,7 @@ export function emit(root: Node, mode: Emit): string {
       if (child.previousSibling() !== null) out += ',' + space;
       out += child.variableSymbol().name();
       let value = child.variableValue();
-      if (value.kind() !== Kind.Undefined) {
+      if (!value.isUndefined()) {
         out += space + '=' + space;
         emit(value, Level.Comma);
       }
@@ -232,7 +232,7 @@ export function emit(root: Node, mode: Emit): string {
         let value = node.variableValue();
         emitSpaceBeforeIdentifier();
         out += node.variableSymbol().name();
-        if (value.kind() !== Kind.Undefined) {
+        if (!value.isUndefined()) {
           out += space + '=' + space;
           emit(value, Level.Comma);
         }
@@ -425,7 +425,7 @@ export function emit(root: Node, mode: Emit): string {
         out += indent;
         emitSpaceBeforeIdentifier();
         out += 'return';
-        if (value.kind() !== Kind.Undefined) {
+        if (!value.isUndefined()) {
           out += space;
           emit(value, Level.Lowest);
         }
