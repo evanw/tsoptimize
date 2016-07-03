@@ -1,69 +1,83 @@
-import * as helpers from './helpers';
-import * as ts from 'typescript';
+import {Kind, Node} from './ast';
 
-let SyntaxKind = ts.SyntaxKind;
+export function mangle(node: Node): void {
+  let kind = node.kind();
 
-export function mangle(program: ts.Program): void {
-  let checker = program.getTypeChecker();
-
-  function mangle(node: ts.Node): ts.Node {
-    if (!node || node.modifiers && node.modifiers.flags & ts.NodeFlags.Ambient) {
-      return node;
-    }
-
-    helpers.replaceChildren(node, mangle);
-
-    switch (node.kind) {
-      case SyntaxKind.PrefixUnaryExpression: {
-        let operand = (node as ts.PrefixUnaryExpression).operand;
-
-        if (helpers.isLiteral(operand)) {
-          switch ((node as ts.PrefixUnaryExpression).operator) {
-            case SyntaxKind.ExclamationToken: return helpers.createBoolean(!helpers.toBoolean(operand), node.pos, node.end);
-            case SyntaxKind.MinusToken: return helpers.createNumber(-helpers.toNumber(operand), node.pos, node.end);
-            case SyntaxKind.PlusToken: return helpers.createNumber(helpers.toNumber(operand), node.pos, node.end);
-            case SyntaxKind.TildeToken: return helpers.createNumber(~helpers.toNumber(operand), node.pos, node.end);
-          }
-        }
-        break;
-      }
-
-      case SyntaxKind.BinaryExpression: {
-        let left = (node as ts.BinaryExpression).left;
-        let right = (node as ts.BinaryExpression).right;
-
-        if (helpers.isLiteral(left) && helpers.isLiteral(right)) {
-          switch ((node as ts.BinaryExpression).operatorToken.kind) {
-            case SyntaxKind.PlusToken: {
-              if (left.kind == SyntaxKind.StringLiteral || right.kind == SyntaxKind.StringLiteral) {
-                return helpers.createString(helpers.toString(left) + helpers.toString(right), node.pos, node.end);
-              }
-              return helpers.createNumber(helpers.toNumber(left) + helpers.toNumber(right), node.pos, node.end);
-            }
-
-            case SyntaxKind.MinusToken: return helpers.createNumber(helpers.toNumber(left) - helpers.toNumber(right), node.pos, node.end);
-            case SyntaxKind.AsteriskToken: return helpers.createNumber(helpers.toNumber(left) * helpers.toNumber(right), node.pos, node.end);
-            case SyntaxKind.SlashToken: return helpers.createNumber(helpers.toNumber(left) / helpers.toNumber(right), node.pos, node.end);
-            case SyntaxKind.PercentToken: return helpers.createNumber(helpers.toNumber(left) % helpers.toNumber(right), node.pos, node.end);
-            case SyntaxKind.AsteriskAsteriskToken: return helpers.createNumber(helpers.toNumber(left) ** helpers.toNumber(right), node.pos, node.end);
-
-            case SyntaxKind.AmpersandToken: return helpers.createNumber(helpers.toNumber(left) & helpers.toNumber(right), node.pos, node.end);
-            case SyntaxKind.BarToken: return helpers.createNumber(helpers.toNumber(left) | helpers.toNumber(right), node.pos, node.end);
-            case SyntaxKind.CaretToken: return helpers.createNumber(helpers.toNumber(left) ^ helpers.toNumber(right), node.pos, node.end);
-
-            case SyntaxKind.LessThanLessThanToken: return helpers.createNumber(helpers.toNumber(left) << helpers.toNumber(right), node.pos, node.end);
-            case SyntaxKind.GreaterThanGreaterThanToken: return helpers.createNumber(helpers.toNumber(left) >> helpers.toNumber(right), node.pos, node.end);
-            case SyntaxKind.GreaterThanGreaterThanGreaterThanToken: return helpers.createNumber(helpers.toNumber(left) >>> helpers.toNumber(right), node.pos, node.end);
-          }
-        }
-        break;
-      }
-    }
-
-    return node;
+  for (let child = node.firstChild(); child !== null; child = child.nextSibling()) {
+    mangle(child);
   }
 
-  for (let sourceFile of program.getSourceFiles()) {
-    mangle(sourceFile);
+  switch (kind) {
+    case Kind.Void: {
+      let value = node.unaryValue();
+      if (!value.hasSideEffects()) node.becomeUndefined();
+      break;
+    }
+
+    case Kind.LogicalAnd: {
+      let left = node.binaryLeft();
+      if (left.isFalse()) node.becomeBoolean(false);
+      break;
+    }
+
+    case Kind.LogicalOr: {
+      let left = node.binaryLeft();
+      if (left.isTrue()) node.becomeBoolean(true);
+      break;
+    }
+
+    case Kind.Conditional: {
+      let test = node.conditionalTest();
+      if (test.isTrue()) node.become(node.conditionalTrue().remove());
+      else if (test.isFalse()) node.become(node.conditionalFalse().remove());
+      break;
+    }
+
+    default: {
+      if (Kind.isUnary(kind)) {
+        let value = node.unaryValue();
+
+        if (value.isLiteral()) {
+          switch (kind) {
+            case Kind.Positive: node.becomeNumber(value.asNumber()); break;
+            case Kind.Negative: node.becomeNumber(-value.asNumber()); break;
+            case Kind.Not: node.becomeBoolean(!value.asBoolean()); break;
+            case Kind.Complement: node.becomeNumber(~value.asNumber()); break;
+          }
+        }
+      }
+
+      else if (Kind.isBinary(kind)) {
+        let left = node.binaryLeft();
+        let right = node.binaryRight();
+
+        if (left.isLiteral() && right.isLiteral()) {
+          switch (kind) {
+            case Kind.Add: {
+              if (left.kind() == Kind.String || right.kind() == Kind.String) {
+                node.becomeString(left.asString() + right.asString());
+              } else {
+                node.becomeNumber(left.asNumber() + right.asNumber());
+              }
+              break;
+            }
+
+            case Kind.Subtract: node.becomeNumber(left.asNumber() - right.asNumber()); break;
+            case Kind.Multiply: node.becomeNumber(left.asNumber() * right.asNumber()); break;
+            case Kind.Divide: node.becomeNumber(left.asNumber() / right.asNumber()); break;
+            case Kind.Remainder: node.becomeNumber(left.asNumber() % right.asNumber()); break;
+
+            case Kind.BitwiseAnd: node.becomeNumber(left.asNumber() & right.asNumber()); break;
+            case Kind.BitwiseOr: node.becomeNumber(left.asNumber() | right.asNumber()); break;
+            case Kind.BitwiseXor: node.becomeNumber(left.asNumber() ^ right.asNumber()); break;
+
+            case Kind.ShiftLeft: node.becomeNumber(left.asNumber() << right.asNumber()); break;
+            case Kind.ShiftRight: node.becomeNumber(left.asNumber() >> right.asNumber()); break;
+            case Kind.ShiftRightUnsigned: node.becomeNumber(left.asNumber() >>> right.asNumber()); break;
+          }
+        }
+      }
+      break;
+    }
   }
 }
