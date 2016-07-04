@@ -16,10 +16,10 @@ function check(input: string, expectedNormal: string, expectedMinified: string):
     return `${diagnostic.file.fileName}:${line + 1}:${character + 1}: ${message}`;
   }).join('\n');
 
-  let modules = lowering.lower(program);
+  let {knownSymbols, modules} = lowering.lower(program);
   assert.strictEqual(modules.length, 1);
 
-  mangler.mangle(modules[0]);
+  mangler.mangle(modules[0], knownSymbols);
 
   let outputNormal = emitter.emit(modules[0], emitter.Emit.Normal);
   let outputMinified = emitter.emit(modules[0], emitter.Emit.Minified);
@@ -179,4 +179,36 @@ it('mangler: boolean identical appearance logic', function() {
     'x((x(),x())),' +
     'x((x(),x()));'
   );
+});
+
+it('mangler: Math.pow', function() {
+  this.timeout(0);
+
+  check(
+    'this(3 ** 4);' +
+    'this(Math.pow(3, 4));' +
+    'this((0, Math).pow(3, 4));' +
+    'this(Math.pow(3, this()));' +
+    'this(Math.pow(this(), 4));' +
+    'this((this(), Math).pow(3, 4));' +
+    'function foo(Math: any) { return Math.pow(3, 4); }',
+
+    'this(81), ' +
+    'this(81), ' +
+    'this(81), ' +
+    'this(Math.pow(3, this())), ' +
+    'this(Math.pow(this(), 4)), ' +
+    'this((this(), Math).pow(3, 4));\n' +
+    'function foo(Math) {\n' +
+    '  return Math.pow(3, 4);\n' +
+    '}',
+
+    'this(81),' +
+    'this(81),' +
+    'this(81),' +
+    'this(Math.pow(3,this())),' +
+    'this(Math.pow(this(),4)),' +
+    'this((this(),Math).pow(3,4));' +
+    'function foo(Math){return Math.pow(3,4)}'
+ );
 });

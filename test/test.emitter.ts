@@ -15,7 +15,7 @@ function check(input: string, expectedNormal: string, expectedMinified: string):
     return `${diagnostic.file.fileName}:${line + 1}:${character + 1}: ${message}`;
   }).join('\n');
 
-  let modules = lowering.lower(program);
+  let {modules} = lowering.lower(program);
   assert.strictEqual(modules.length, 1);
 
   let outputNormal = emitter.emit(modules[0], emitter.Emit.Normal);

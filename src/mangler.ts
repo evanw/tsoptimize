@@ -1,4 +1,5 @@
-import {Kind, Node} from './ast';
+import {Kind, Node, Symbol} from './ast';
+import {KnownSymbols} from './lowering';
 
 function isAddWithStringLiteral(node: Node): boolean {
   return node.isString() || node.kind() === Kind.Add && (
@@ -227,11 +228,11 @@ function mangleConditional(node: Node): void {
   }
 }
 
-export function mangle(node: Node): void {
+export function mangle(node: Node, knownSymbols: KnownSymbols): void {
   let kind = node.kind();
 
   for (let child = node.firstChild(); child !== null; child = child.nextSibling()) {
-    mangle(child);
+    mangle(child, knownSymbols);
   }
 
   switch (kind) {
@@ -306,7 +307,7 @@ export function mangle(node: Node): void {
           node.become(Node.createExpression(Node.createBinary(Kind.LogicalAnd, test.remove(), whenTrue)));
         }
 
-        mangle(node);
+        mangle(node, knownSymbols);
       }
 
       break;
@@ -356,7 +357,7 @@ export function mangle(node: Node): void {
       let test = node.whileTest();
       let body = node.whileBody();
       node.become(Node.createFor(Node.createEmpty(), test.remove(), Node.createEmpty(), body.remove()));
-      mangle(node);
+      mangle(node, knownSymbols);
       break;
     }
 
@@ -425,6 +426,24 @@ export function mangle(node: Node): void {
 
       // "1 || a" => "1"
       if (left.isTruthy()) node.become(left.remove());
+      break;
+    }
+
+    case Kind.Call: {
+      let target = node.callTarget();
+
+      if (target.kind() === Kind.Member && !target.memberValue().hasSideEffects()) {
+        let symbol = target.memberSymbol();
+
+        if (symbol === knownSymbols.Math_pow && node.childCount() === 3) {
+          let left = target.nextSibling();
+          let right = left.nextSibling();
+
+          if (left.isLiteral() && right.isLiteral()) {
+            node.becomeNumber(Math.pow(left.asNumber(), right.asNumber()));
+          }
+        }
+      }
       break;
     }
 

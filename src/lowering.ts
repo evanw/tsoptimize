@@ -4,8 +4,22 @@ import {Kind, Node, Symbol} from './ast';
 let NodeFlags = ts.NodeFlags;
 let SyntaxKind = ts.SyntaxKind;
 
-export function lower(program: ts.Program): Node[] {
+export interface KnownSymbols {
+  Math: Symbol;
+  Math_pow: Symbol;
+}
+
+export interface LoweringResult {
+  knownSymbols: KnownSymbols;
+  modules: Node[];
+}
+
+export function lower(program: ts.Program): LoweringResult {
   let checker = program.getTypeChecker();
+
+  function symbolForSymbol(symbol: ts.Symbol): Symbol {
+    return (symbol as any).__symbol || ((symbol as any).__symbol = new Symbol(symbol.name));
+  }
 
   function symbolForIdentifier(node: ts.Node): Symbol {
     if (node.kind !== SyntaxKind.Identifier) {
@@ -13,7 +27,7 @@ export function lower(program: ts.Program): Node[] {
     }
     let symbol = checker.getSymbolAtLocation(node);
     if (symbol == null) return new Symbol((node as ts.Identifier).text);
-    return (symbol as any).__symbol || ((symbol as any).__symbol = new Symbol(symbol.name));
+    return symbolForSymbol(symbol);
   }
 
   function visit(node: ts.Node): Node {
@@ -22,6 +36,10 @@ export function lower(program: ts.Program): Node[] {
     }
 
     switch (node.kind) {
+      case SyntaxKind.TypeAliasDeclaration: {
+        return Node.createEmpty();
+      }
+
       case SyntaxKind.SourceFile: {
         let result = Node.createModule();
         for (let statement of (node as ts.SourceFile).statements) {
@@ -336,6 +354,11 @@ export function lower(program: ts.Program): Node[] {
 
       case SyntaxKind.BinaryExpression: {
         switch ((node as ts.BinaryExpression).operatorToken.kind) {
+          case SyntaxKind.AsteriskAsteriskToken: {
+            let mathPow = Node.createMember(Node.createIdentifier(knownSymbols.Math), knownSymbols.Math_pow);
+            return Node.createCall(mathPow).appendChild(visit((node as ts.BinaryExpression).left)).appendChild(visit((node as ts.BinaryExpression).right));
+          }
+
           case SyntaxKind.CommaToken: {
             let left = visit((node as ts.BinaryExpression).left);
             if (left.kind() !== Kind.Sequence) left = Node.createSequence().appendChild(left);
@@ -486,11 +509,32 @@ export function lower(program: ts.Program): Node[] {
     }
   }
 
+  let sourceFiles = program.getSourceFiles();
   let modules: Node[] = [];
-  for (let sourceFile of program.getSourceFiles()) {
+  let knownSymbols: KnownSymbols = {
+    Math: null,
+    Math_pow: null,
+  };
+
+  if (!sourceFiles.length) {
+    return {knownSymbols, modules};
+  }
+
+  // Scan interfaces
+  for (let symbol of checker.getSymbolsInScope(sourceFiles[0], ts.SymbolFlags.Interface)) {
+    if (symbol.name === 'Math') {
+      knownSymbols.Math = symbolForSymbol(symbol);
+      knownSymbols.Math_pow = symbolForSymbol(symbol.members['pow']);
+      break;
+    }
+  }
+
+  // Then lower non-declarations
+  for (let sourceFile of sourceFiles) {
     if (!(sourceFile.flags & NodeFlags.DeclarationFile)) {
       modules.push(visit(sourceFile));
     }
   }
-  return modules;
+
+  return {knownSymbols, modules};
 }
