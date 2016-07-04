@@ -1,17 +1,47 @@
 import {Kind, Node, Symbol} from './ast';
 
-class ScanInfo {
-  reads: Node[] = [];
-  writes: Node[] = [];
+interface ScanInfo {
+  symbol: Symbol;
+  reads: Node[];
+  writes: Node[];
+}
 
-  constructor(
-    public symbol: Symbol
-  ) {
+const IDENTIFIER_HEAD = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_$';
+const IDENTIFIER_TAIL = IDENTIFIER_HEAD + '0123456789';
+
+export function nameFromIndex(index: number): string {
+  let name = IDENTIFIER_HEAD[index % IDENTIFIER_HEAD.length];
+  index = index / IDENTIFIER_HEAD.length | 0;
+
+  while (index > 0) {
+    name += IDENTIFIER_TAIL[--index % IDENTIFIER_TAIL.length];
+    index = index / IDENTIFIER_TAIL.length | 0;
   }
+
+  return name
+}
+
+function compareByUsage(left: ScanInfo, right: ScanInfo): number {
+  return right.reads.length + right.writes.length - left.reads.length - left.writes.length || left.symbol.id() - right.symbol.id();
 }
 
 export class Scanner {
   private _info: {[id: number]: ScanInfo} = {};
+
+  renameSymbols(): void {
+    let map = this._info;
+    let list: ScanInfo[] = [];
+
+    for (let id in map) {
+      list.push(map[id]);
+    }
+
+    list.sort(compareByUsage);
+
+    for (let i = 0, n = list.length; i < n; i++) {
+      list[i].symbol.setName(nameFromIndex(i));
+    }
+  }
 
   inlineConstantVariables(): boolean {
     let map = this._info;
@@ -133,7 +163,7 @@ export class Scanner {
   private _infoForSymbol(symbol: Symbol): ScanInfo {
     let id = symbol.id();
     let info = this._info[id];
-    if (info == null) this._info[id] = info = new ScanInfo(symbol);
+    if (info == null) this._info[id] = info = {symbol, reads: [], writes: []};
     return info;
   }
 

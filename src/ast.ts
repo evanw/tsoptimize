@@ -149,6 +149,10 @@ export class Symbol {
   name(): string {
     return this._name;
   }
+
+  setName(name: string): void {
+    this._name = name;
+  }
 }
 
 export class Node {
