@@ -52,11 +52,12 @@ function main(): void {
     var minify = document.getElementById('minify');
     var isOutOfDate = false;
     var isBusy = false;
+    var timeout = null;
 
     function post(input, callback) {
       var xhr = new XMLHttpRequest;
       xhr.open('POST', '/');
-      xhr.onload = function() {
+      xhr.onloadend = function() {
         callback(JSON.parse(xhr.responseText));
       };
       xhr.send(JSON.stringify({input: input, minify: minify.checked}));
@@ -79,7 +80,13 @@ function main(): void {
       }
     }
 
-    input.oninput = minify.onchange = update;
+    function updateLater() {
+      clearTimeout(timeout);
+      timeout = setTimeout(update, 100);
+    }
+
+    input.oninput = updateLater;
+    minify.onchange = update;
     update();
   })();
 </script>

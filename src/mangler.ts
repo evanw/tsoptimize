@@ -5,23 +5,90 @@ function isAddWithStringLiteral(node: Node): boolean {
     isAddWithStringLiteral(node.binaryLeft()) || isAddWithStringLiteral(node.binaryRight()));
 }
 
-function mangleStatements(firstChild: Node): void {
-  let next = firstChild;
+function mangleStatements(node: Node): void {
+  let previous: Node = null;
+  let child = node.firstChild();
 
-  while (next !== null) {
-    let previous = next;
-    next = next.nextSibling();
-
-    switch (previous.kind()) {
+  while (child !== null) {
+    switch (child.kind()) {
+      // "a; ; b;" => "a; b;"
       case Kind.Empty: {
-        previous.remove();
+        child.remove();
+        child = null;
         break;
       }
 
+      // "a; { b; c; } d;" => "a; b; c; d;"
       case Kind.Block: {
-        previous.replaceWithChildren();
+        child.replaceWithChildren();
+        child = null;
         break;
       }
+
+      // "a; b;" => "a, b;"
+      case Kind.Expression: {
+        if (previous !== null && previous.kind() === Kind.Expression) {
+          previous.appendChild(Node.joinExpressions(previous.expressionValue().remove(), child.expressionValue().remove()));
+          child.remove();
+          child = null;
+        }
+        break;
+      }
+
+      // "a; return b;" => "return a, b;"
+      case Kind.Return: {
+        if (previous !== null && previous.kind() === Kind.Expression) {
+          child.appendChild(Node.joinExpressions(previous.expressionValue().remove(), child.returnValue().remove()));
+          previous.become(child.remove());
+          child = null;
+        }
+        break;
+      }
+
+      // "a; throw b;" => "throw a, b;"
+      case Kind.Throw: {
+        if (previous !== null && previous.kind() === Kind.Expression) {
+          child.appendChild(Node.joinExpressions(previous.expressionValue().remove(), child.throwValue().remove()));
+          previous.become(child.remove());
+          child = null;
+        }
+        break;
+      }
+
+      case Kind.For: {
+        if (previous !== null && previous.kind() === Kind.Expression) {
+          let setup = child.forSetup();
+
+          // "a; for (;;) {}" => "for (a;;) {}"
+          if (setup.isEmpty()) {
+            setup.become(previous.expressionValue().remove());
+            previous.become(child.remove());
+            child = null;
+          }
+
+          // "a; for (b;;) {}" => "for (a, b;;) {}"
+          else if (Kind.isExpression(setup.kind())) {
+            let test = child.forTest();
+            child.insertBefore(test, Node.joinExpressions(previous.expressionValue().remove(), setup.remove()));
+            previous.become(child.remove());
+            child = null;
+          }
+        }
+        break;
+      }
+    }
+
+    if (child !== null) {
+      previous = child;
+      child = child.nextSibling();
+    }
+
+    else if (previous !== null) {
+      child = previous.nextSibling();
+    }
+
+    else {
+      child = node.firstChild();
     }
   }
 }
@@ -95,6 +162,20 @@ function mangleUnusedExpression(node: Node): void {
   }
 }
 
+function mangleBlockStatement(node: Node): void {
+  if (node.kind() === Kind.Block) {
+    // "{}" => ";"
+    if (!node.hasChildren()) {
+      node.becomeEmpty();
+    }
+
+    // "{ a; }" => "a;"
+    else if (node.hasOneChild()) {
+      node.become(node.firstChild().remove());
+    }
+  }
+}
+
 function mangleConditional(node: Node): void {
   let test = node.conditionalTest();
 
@@ -119,11 +200,7 @@ function mangleConditional(node: Node): void {
     // "a() ? b : b" => "a(), b"
     else {
       mangleUnusedExpression(test.remove());
-      if (test.kind() !== Kind.Sequence) {
-        test = Node.createSequence().appendChild(test);
-      }
-      test.appendChild(left);
-      node.become(test);
+      node.become(Node.joinExpressions(test, left));
     }
   }
 
@@ -159,17 +236,20 @@ export function mangle(node: Node): void {
 
   switch (kind) {
     case Kind.Module: {
-      mangleStatements(node.firstChild());
+      mangleStatements(node);
       break;
     }
 
     case Kind.Block: {
-      mangleStatements(node.firstChild());
+      mangleStatements(node);
       break;
     }
 
     case Kind.If: {
       let test = node.ifTest();
+
+      mangleBlockStatement(node.ifTrue());
+      mangleBlockStatement(node.ifFalse());
 
       // "if (1) a; else b;" => "a;"
       if (test.isTruthy()) {
@@ -229,6 +309,62 @@ export function mangle(node: Node): void {
         mangle(node);
       }
 
+      break;
+    }
+
+    case Kind.For: {
+      let setup = node.forSetup();
+      let test = node.forTest();
+      let update = node.forUpdate();
+      let body = node.forBody();
+
+      mangleBlockStatement(body);
+
+      // "for (x;;) {}" => "for (;;) {}"
+      if (!setup.hasSideEffects()) {
+        setup.becomeEmpty();
+      }
+
+      // "for (;; x) {}" => "for (;;) {}"
+      if (!update.hasSideEffects()) {
+        update.becomeEmpty();
+      }
+
+      // "for (; 0; ) {}" => ";"
+      // "for (x = 0; 0; ) {}" => "x = 0;"
+      // "for (var x; 0; ) {}" => "var x;"
+      if (test.isFalsy()) {
+        setup.remove();
+        if (Kind.isExpression(setup.kind())) setup = Node.createExpression(setup);
+        node.become(setup);
+      }
+      break;
+    }
+
+    case Kind.ForIn: {
+      mangleBlockStatement(node.forInBody());
+      break;
+    }
+
+    case Kind.DoWhile: {
+      mangleBlockStatement(node.doWhileBody());
+      break;
+    }
+
+    // "while (a) b;" => "for (; a; ) b;"
+    case Kind.While: {
+      let test = node.whileTest();
+      let body = node.whileBody();
+      node.become(Node.createFor(Node.createEmpty(), test.remove(), Node.createEmpty(), body.remove()));
+      mangle(node);
+      break;
+    }
+
+    // "a: ;" => ";"
+    case Kind.Label: {
+      let body = node.labelBody();
+      mangleBlockStatement(body);
+      if (body.isEmpty()) node.becomeEmpty();
       break;
     }
 

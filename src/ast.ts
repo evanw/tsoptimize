@@ -571,6 +571,15 @@ export class Node {
     return new Node(Kind.Sequence);
   }
 
+  static joinExpressions(left: Node, right: Node): Node {
+    assert(Kind.isExpression(left.kind()));
+    assert(Kind.isExpression(right.kind()));
+    if (left.kind() !== Kind.Sequence) left = Node.createSequence().appendChild(left);
+    if (right.kind() !== Kind.Sequence) left.appendChild(right);
+    else left.appendChildrenFrom(right);
+    return left;
+  }
+
   static createThis(): Node {
     return new Node(Kind.This);
   }
@@ -951,6 +960,14 @@ export class Node {
       case Kind.TypeOf:
       case Kind.Void: {
         return this.unaryValue().hasSideEffects();
+      }
+
+      case Kind.Member: {
+        return this.memberValue().hasSideEffects();
+      }
+
+      case Kind.Index: {
+        return this.indexTarget().hasSideEffects() || this.indexProperty().hasSideEffects();
       }
 
       case Kind.Array: {
