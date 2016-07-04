@@ -5,7 +5,7 @@ import * as lowering from '../src/lowering';
 import * as mangler from '../src/mangler';
 import * as ts from 'typescript';
 
-function check(input: string, expectedNormal: string, expectedMinified: string): void {
+function check(input: string, expected: string): void {
   let program = helpers.createProgram({'input.ts': input}, {
     noImplicitAny: true,
   });
@@ -21,12 +21,10 @@ function check(input: string, expectedNormal: string, expectedMinified: string):
 
   mangler.mangle(modules[0], knownSymbols);
 
-  let outputNormal = emitter.emit(modules[0], emitter.Emit.Normal);
-  let outputMinified = emitter.emit(modules[0], emitter.Emit.Minified);
+  let output = emitter.emit(modules[0], emitter.Emit.Normal);
 
   assert.strictEqual(diagnostics, '');
-  assert.strictEqual(outputNormal.trim(), expectedNormal.trim());
-  assert.strictEqual(outputMinified.trim(), expectedMinified.trim());
+  assert.strictEqual(output.trim(), expected.trim());
 }
 
 it('mangler: unary arithmetic', function() {
@@ -34,8 +32,7 @@ it('mangler: unary arithmetic', function() {
 
   check(
     'this.x = [+3, -3, ~3, !3];',
-    'this.x = [3, -3, -4, false];',
-    'this.x=[3,-3,-4,!1];'
+    'this.x = [3, -3, -4, false];'
   );
 });
 
@@ -44,8 +41,7 @@ it('mangler: binary arithmetic', function() {
 
   check(
     'this.x = [3 + 5, 3 - 5, 3 * 5, 3 / 5, 3 % 5, 3 & 5, 3 | 5, 3 ^ 5, 3 << 5, -33 >> 5, -33 >>> 5];',
-    'this.x = [8, -2, 15, 0.6, 3, 1, 7, 6, 96, -2, 134217726];',
-    'this.x=[8,-2,15,.6,3,1,7,6,96,-2,134217726];'
+    'this.x = [8, -2, 15, 0.6, 3, 1, 7, 6, 96, -2, 134217726];'
   );
 });
 
@@ -61,12 +57,7 @@ it('mangler: strings', function() {
     'var x;\n' +
     'this.x = ["0", "false", "true", "null", "undefined"], ' +
     'this.x = [x + "a", "a" + x, "a" + x + "b", "" + x + x, x + "a" + x], ' +
-    'this.x = ["0a" + x, "a" + (0 + x), x + "a0", x + 0 + "a", x + "0", "0" + x];',
-
-    'var x;' +
-    'this.x=["0","false","true","null","undefined"],' +
-    'this.x=[x+"a","a"+x,"a"+x+"b",""+x+x,x+"a"+x],' +
-    'this.x=["0a"+x,"a"+(0+x),x+"a0",x+0+"a",x+"0","0"+x];'
+    'this.x = ["0a" + x, "a" + (0 + x), x + "a0", x + 0 + "a", x + "0", "0" + x];'
   );
 });
 
@@ -96,16 +87,7 @@ it('mangler: side effects', function() {
     'x((x(), x())), ' +
     'x((x(), x(), 0)), ' +
     'x((x(), x(), x(), x())), ' +
-    'x(1), x(2), x(3), x(4), x(5);',
-
-    'var x;' +
-    'x(),' +
-    'x(x()),' +
-    'x((x(),0)),' +
-    'x((x(),x())),' +
-    'x((x(),x(),0)),' +
-    'x((x(),x(),x(),x())),' +
-    'x(1),x(2),x(3),x(4),x(5);'
+    'x(1), x(2), x(3), x(4), x(5);'
   );
 });
 
@@ -123,13 +105,7 @@ it('mangler: boolean conditional logic', function() {
     'x(2), ' +
     'x(3), ' +
     'x(x ? 2 : 3), ' +
-    'x(x ? 3 : 2);',
-
-    'var x;' +
-    'x(2),' +
-    'x(3),' +
-    'x(x?2:3),' +
-    'x(x?3:2);'
+    'x(x ? 3 : 2);'
   );
 });
 
@@ -163,21 +139,7 @@ it('mangler: boolean identical appearance logic', function() {
     'x(x), ' +
     'x(x), ' +
     'x((x(), x())), ' +
-    'x((x(), x()));',
-
-    'var x;' +
-    'x(x||0),' +
-    'x(x||0),' +
-    'x(x()?x():0),' +
-    'x(x()?x():0),' +
-    'x(x&&0),' +
-    'x(x&&0),' +
-    'x(x()?0:x()),' +
-    'x(x()?0:x()),' +
-    'x(x),' +
-    'x(x),' +
-    'x((x(),x())),' +
-    'x((x(),x()));'
+    'x((x(), x()));'
   );
 });
 
@@ -201,15 +163,7 @@ it('mangler: Math.pow', function() {
     'this((this(), Math).pow(3, 4));\n' +
     'function foo(Math) {\n' +
     '  return Math.pow(3, 4);\n' +
-    '}',
-
-    'this(81),' +
-    'this(81),' +
-    'this(81),' +
-    'this(Math.pow(3,this())),' +
-    'this(Math.pow(this(),4)),' +
-    'this((this(),Math).pow(3,4));' +
-    'function foo(Math){return Math.pow(3,4)}'
+    '}'
  );
 });
 
@@ -223,10 +177,6 @@ it('mangler: typeof', function() {
 
     'this("string", "boolean", "number", "undefined", "object", "object", "object"), ' +
     'this("string", "boolean", "number", "undefined", "object", "object"), ' +
-    'this(typeof typeof this(), typeof !this(), typeof -this(), typeof void this(), typeof [this()], typeof {x: this()});',
-
-    'this("string","boolean","number","undefined","object","object","object"),' +
-    'this("string","boolean","number","undefined","object","object"),' +
-    'this(typeof typeof this(),typeof!this(),typeof-this(),typeof void this(),typeof[this()],typeof{x:this()});'
+    'this(typeof typeof this(), typeof !this(), typeof -this(), typeof void this(), typeof [this()], typeof {x: this()});'
  );
 });

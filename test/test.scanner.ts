@@ -7,7 +7,7 @@ import * as ts from 'typescript';
 
 import * as mangler from '../src/mangler';
 
-function check(input: string, expectedNormal: string, expectedMinified: string): void {
+function check(input: string, expected: string): void {
   let program = helpers.createProgram({'input.ts': input}, {
     noImplicitAny: true,
   });
@@ -25,12 +25,10 @@ function check(input: string, expectedNormal: string, expectedMinified: string):
   scanner.scan(modules[0]);
   scanner.inlineConstantVariables();
 
-  let outputNormal = emitter.emit(modules[0], emitter.Emit.Normal);
-  let outputMinified = emitter.emit(modules[0], emitter.Emit.Minified);
+  let output = emitter.emit(modules[0], emitter.Emit.Normal);
 
   assert.strictEqual(diagnostics, '');
-  assert.strictEqual(outputNormal.trim(), expectedNormal.trim());
-  assert.strictEqual(outputMinified.trim(), expectedMinified.trim());
+  assert.strictEqual(output.trim(), expected.trim());
 }
 
 it('scanner: inline constants', function() {
@@ -47,12 +45,6 @@ it('scanner: inline constants', function() {
     '  var y = 1 + 2, z = 3;\n' +
     '  z++;\n' +
     '  return 1 + y + z + a + void 0;\n' +
-    '}',
-
-    'function foo(a){' +
-    'var y=1+2,z=3;' +
-    'z++;' +
-    'return 1+y+z+a+void 0' +
     '}'
   );
 });
