@@ -58,7 +58,7 @@ function main(): void {
       var xhr = new XMLHttpRequest;
       xhr.open('POST', '/');
       xhr.onloadend = function() {
-        callback(JSON.parse(xhr.responseText));
+        callback(xhr.responseText);
       };
       xhr.send(JSON.stringify({input: input, minify: minify.checked}));
     }
@@ -75,7 +75,14 @@ function main(): void {
         post(input.value, function(json) {
           isBusy = false;
           if (isOutOfDate) update();
-          else output.value = json.success ? json.output : json.diagnostics;
+          else {
+            try {
+              json = JSON.parse(json);
+              output.value = json.success ? json.output : json.diagnostics;
+            } catch (e) {
+              output.value = '(failure)';
+            }
+          }
         });
       }
     }
