@@ -503,6 +503,69 @@ export function mangle(node: Node, knownSymbols: KnownSymbols): void {
       break;
     }
 
+    case Kind.TypeOf: {
+      let value = node.unaryValue();
+
+      if (!value.hasSideEffects()) {
+        switch (value.kind()) {
+          case Kind.Boolean:
+          case Kind.Equal:
+          case Kind.EqualStrict:
+          case Kind.GreaterThan:
+          case Kind.GreaterThanEqual:
+          case Kind.In:
+          case Kind.InstanceOf:
+          case Kind.LessThan:
+          case Kind.LessThanEqual:
+          case Kind.Not:
+          case Kind.NotEqual:
+          case Kind.NotEqualStrict: {
+            node.becomeString('boolean');
+            break;
+          }
+
+          case Kind.Array:
+          case Kind.Null:
+          case Kind.Object: {
+            node.becomeString('object');
+            break;
+          }
+
+          case Kind.BitwiseAnd:
+          case Kind.BitwiseOr:
+          case Kind.BitwiseXor:
+          case Kind.Complement:
+          case Kind.Divide:
+          case Kind.Multiply:
+          case Kind.Negative:
+          case Kind.Number:
+          case Kind.Positive:
+          case Kind.Remainder:
+          case Kind.ShiftLeft:
+          case Kind.ShiftRight:
+          case Kind.ShiftRightUnsigned:
+          case Kind.Subtract: {
+            node.becomeString('number');
+            break;
+          }
+
+          case Kind.String:
+          case Kind.TypeOf: {
+            node.becomeString('string');
+            break;
+          }
+
+          case Kind.Undefined:
+          case Kind.Void: {
+            node.becomeString('undefined');
+            break;
+          }
+        }
+      }
+
+      break;
+    }
+
     default: {
       if (Kind.isUnary(kind)) {
         let value = node.unaryValue();

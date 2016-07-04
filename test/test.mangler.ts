@@ -212,3 +212,21 @@ it('mangler: Math.pow', function() {
     'function foo(Math){return Math.pow(3,4)}'
  );
 });
+
+it('mangler: typeof', function() {
+  this.timeout(0);
+
+  check(
+    'this(typeof "", typeof false, typeof 0, typeof void 0, typeof null, typeof [], typeof {});' +
+    'this(typeof typeof this, typeof !this, typeof -this, typeof void this, typeof [this], typeof {x: this});' +
+    'this(typeof typeof this(), typeof !this(), typeof -this(), typeof void this(), typeof [this()], typeof {x: this()});',
+
+    'this("string", "boolean", "number", "undefined", "object", "object", "object"), ' +
+    'this("string", "boolean", "number", "undefined", "object", "object"), ' +
+    'this(typeof typeof this(), typeof !this(), typeof -this(), typeof void this(), typeof [this()], typeof {x: this()});',
+
+    'this("string","boolean","number","undefined","object","object","object"),' +
+    'this("string","boolean","number","undefined","object","object"),' +
+    'this(typeof typeof this(),typeof!this(),typeof-this(),typeof void this(),typeof[this()],typeof{x:this()});'
+ );
+});

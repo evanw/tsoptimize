@@ -977,23 +977,23 @@ export class Node {
       case Kind.Array: {
         for (let child = this._firstChild; child !== null; child = child._nextSibling) {
           if (child.hasSideEffects()) {
-            return false;
+            return true;
           }
         }
-        return true;
+        return false;
       }
 
       case Kind.Object: {
         for (let child = this._firstChild; child !== null; child = child._nextSibling) {
           if (child.propertyValue().hasSideEffects()) {
-            return false;
+            return true;
           }
         }
-        return true;
+        return false;
       }
 
       default: {
-        if (Kind.isBinary(this._kind)) {
+        if (Kind.isBinary(this._kind) && !Kind.isBinaryAssign(this._kind)) {
           return this.binaryLeft().hasSideEffects() || this.binaryRight().hasSideEffects();
         }
 
