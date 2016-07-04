@@ -62,10 +62,11 @@ export class Scanner {
       }
 
       // This symbol must be initialized to a constant
-      let value = write.variableValue().clone();
+      let value = write.variableValue();
       if (!value.isLiteral()) {
         continue;
       }
+      value = value.clone();
 
       // Inline all reads
       let count = 0;
@@ -77,7 +78,7 @@ export class Scanner {
         }
       }
 
-      // Remove the variable now that it's unused
+      // Remove the variable if it's now unused
       if (count === info.reads.length) {
         let parent = write.parent();
         wasChanged = true;
