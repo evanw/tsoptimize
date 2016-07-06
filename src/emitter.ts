@@ -442,6 +442,32 @@ export function emit(root: Node, mode: Emit): string {
         break;
       }
 
+      case Kind.Try: {
+        out += indent;
+        emitSpaceBeforeIdentifier();
+        out += 'try' + space;
+        emitBlock(node.tryBlock());
+
+        let tryCatch = node.tryCatch();
+        if (!tryCatch.isEmpty()) {
+          out += space;
+          emitSpaceBeforeIdentifier();
+          out += 'catch' + space + '(' + tryCatch.catchSymbol().name() + ')' + space;
+          emitBlock(tryCatch.catchBlock());
+        }
+
+        let tryFinally = node.tryFinally();
+        if (!tryFinally.isEmpty()) {
+          out += space;
+          emitSpaceBeforeIdentifier();
+          out += 'finally' + space;
+          emitBlock(tryFinally);
+        }
+
+        out += newline;
+        break;
+      }
+
       case Kind.Variables: {
         out += indent;
         emitSpaceBeforeIdentifier();

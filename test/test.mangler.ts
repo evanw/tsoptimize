@@ -7,6 +7,7 @@ import * as ts from 'typescript';
 
 function check(input: string, expected: string): void {
   let program = helpers.createProgram({'input.ts': input}, {
+    allowUnreachableCode: true,
     noImplicitAny: true,
   });
 
@@ -179,4 +180,38 @@ it('mangler: typeof', function() {
     'this("string", "boolean", "number", "undefined", "object", "object"), ' +
     'this(typeof typeof this(), typeof !this(), typeof -this(), typeof void this(), typeof [this()], typeof {x: this()});'
  );
+});
+
+it('mangler: try/catch/finally', function() {
+  this.timeout(0);
+
+  check(
+    // Input: Remove catch blocks that just rethrow
+    'try { this(1); } catch (e) { if (true) console.log(e); throw e; }' +
+    'try { this(2); } catch (e) { if (false) console.log(e); throw e; }' +
+    'try { this(3); } catch (e) { if (true) console.log(e); throw e; } finally { this(4); }' +
+    'try { this(5); } catch (e) { if (false) console.log(e); throw e; } finally { this(6); }' +
+
+    // Input: Remove empty finally blocks
+    'try { this(1); } finally {}' +
+    'try { this(2); } catch (e) { console.log(e); } finally {}' +
+
+    // Input: Replace everything with the finally block if the try block is empty
+    'try {} catch (e) { this(1); }' +
+    'try {} finally { this(2); }' +
+    'try {} catch (e) { this(3); } finally { this(4); }',
+
+    // Output: Remove catch blocks that just rethrow
+    'try {\n  this(1);\n} catch (e) {\n  throw console.log(e), e;\n}\n' +
+    'this(2);\n' +
+    'try {\n  this(3);\n} catch (e) {\n  throw console.log(e), e;\n} finally {\n  this(4);\n}\n' +
+    'try {\n  this(5);\n} finally {\n  this(6);\n}\n' +
+
+    // Output: Remove empty finally blocks
+    'this(1);\n' +
+    'try {\n  this(2);\n} catch (e) {\n  console.log(e);\n}\n' +
+
+    // Output: Replace everything with the finally block if the try block is empty
+    'this(2), this(4);'
+  );
 });

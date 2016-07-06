@@ -9,6 +9,7 @@ function equalOrBothNaN(left: number, right: number): boolean {
 }
 
 export enum Kind {
+  Catch,
   Module,
   Property,
   Variable,
@@ -29,6 +30,7 @@ export enum Kind {
   Namespace,
   Return,
   Throw,
+  Try,
   Variables,
   While,
 
@@ -389,6 +391,22 @@ export class Node {
     return node.appendChild(value);
   }
 
+  static createTry(block: Node, catch_: Node, finally_: Node): Node {
+    assert(block._kind === Kind.Block);
+    assert(catch_._kind === Kind.Catch || catch_._kind === Kind.Empty);
+    assert(finally_._kind === Kind.Block || finally_._kind === Kind.Empty);
+    assert(catch_._kind !== Kind.Empty || finally_._kind !== Kind.Empty);
+    return new Node(Kind.Try).appendChild(block).appendChild(catch_).appendChild(finally_);
+  }
+
+  static createCatch(symbol: Symbol, body: Node): Node {
+    assert(symbol !== null);
+    assert(body._kind === Kind.Block);
+    let node = new Node(Kind.Catch);
+    node._symbolValue = symbol;
+    return node.appendChild(body);
+  }
+
   static createModule(): Node {
     return new Node(Kind.Module);
   }
@@ -607,6 +625,41 @@ export class Node {
 
   ////////////////////////////////////////////////////////////////////////////////
   // Getters
+
+  tryBlock(): Node {
+    assert(this._kind === Kind.Try);
+    assert(this.childCount() === 3);
+    assert(this._firstChild._kind === Kind.Block);
+    return this._firstChild;
+  }
+
+  tryCatch(): Node {
+    assert(this._kind === Kind.Try);
+    assert(this.childCount() === 3);
+    assert(this._firstChild._nextSibling._kind === Kind.Catch || this._firstChild._nextSibling._kind === Kind.Empty);
+    return this._firstChild._nextSibling;
+  }
+
+  tryFinally(): Node {
+    assert(this._kind === Kind.Try);
+    assert(this.childCount() === 3);
+    assert(this._lastChild._kind === Kind.Block || this._lastChild._kind === Kind.Empty);
+    return this._lastChild;
+  }
+
+  catchSymbol(): Symbol {
+    assert(this._kind === Kind.Catch);
+    assert(this.childCount() === 1);
+    assert(this._symbolValue !== null);
+    return this._symbolValue;
+  }
+
+  catchBlock(): Node {
+    assert(this._kind === Kind.Catch);
+    assert(this.childCount() === 1);
+    assert(this._firstChild._kind === Kind.Block);
+    return this._firstChild;
+  }
 
   propertyKey(): Symbol {
     assert(this._kind === Kind.Property);

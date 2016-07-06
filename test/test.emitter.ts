@@ -6,6 +6,7 @@ import * as ts from 'typescript';
 
 function check(input: string, expectedNormal: string, expectedMinified: string): void {
   let program = helpers.createProgram({'input.ts': input}, {
+    allowUnreachableCode: true,
     noImplicitAny: true,
   });
 
@@ -30,29 +31,32 @@ it('emitter: general', function() {
   this.timeout(0);
 
   check(
-    'function test(a: number, b: number): number {\n' +
-    '  [false, true, null, this, 0, 1.5000, 1e10, \'abc\\n\', "abc\\n", `abc\\n`, `(\${a} \${b})`, /abc\\n/g];\n' +
-    '  do break; while (true);\n' +
-    '  do continue; while (false);\n' +
-    '  x: do break x; while (true);\n' +
-    '  y: do continue y; while (false);\n' +
-    '  z: { break z; }\n' +
-    '  if (a) throw new Error();\n' +
-    '  else if (b) return a;\n' +
-    '  else debugger;\n' +
-    '  while (true) break;\n' +
-    '  for (;;) break;\n' +
-    '  var i = 0, j = 1;\n' +
-    '  const c: any = null;\n' +
-    '  for (i = 0; i < 10; i++) ;\n' +
-    '  for (var i = 0, j = 10; i < j; i++, j--) ;\n' +
-    '  for (x in c) ;\n' +
-    '  for (var x in c) ;\n' +
-    '  [i?a:b, test(i, j), (a, b, i, j), , , {a: b, "b ": a, c}, c[a], c.a, a as number,,];\n' +
-    '  [+a, -a, !a, ~a, --a, ++a, a--, a++, void a, typeof a, delete a];\n' +
-    '  [a == b, a != b, a === b, a !== b, a < b, a > b, a <= b, a >= b, a && b, a || b];\n' +
-    '  [a + b, a - b, a * b, a / b, a % b, a & b, a | b, a ^ b, a << b, a >> b];\n' +
-    '  [a = b, a += b, a -= b, a *= b, a /= b, a %= b, a &= b, a |= b, a ^= b, a <<= b, a >>= b];\n' +
+    'function test(a: number, b: number): number {' +
+    '  [false, true, null, this, 0, 1.5000, 1e10, \'abc\\n\', "abc\\n", `abc\\n`, `(\${a} \${b})`, /abc\\n/g];' +
+    '  do break; while (true);' +
+    '  do continue; while (false);' +
+    '  x: do break x; while (true);' +
+    '  y: do continue y; while (false);' +
+    '  z: { break z; }' +
+    '  if (a) throw new Error();' +
+    '  else if (b) return a;' +
+    '  else debugger;' +
+    '  try { a; }' +
+    '  catch (e) { e; }' +
+    '  finally { b; }' +
+    '  while (true) break;' +
+    '  for (;;) break;' +
+    '  var i = 0, j = 1;' +
+    '  const c: any = null;' +
+    '  for (i = 0; i < 10; i++) ;' +
+    '  for (var i = 0, j = 10; i < j; i++, j--) ;' +
+    '  for (x in c) ;' +
+    '  for (var x in c) ;' +
+    '  [i?a:b, test(i, j), (a, b, i, j), , , {a: b, "b ": a, c}, c[a], c.a, a as number,,];' +
+    '  [+a, -a, !a, ~a, --a, ++a, a--, a++, void a, typeof a, delete a];' +
+    '  [a == b, a != b, a === b, a !== b, a < b, a > b, a <= b, a >= b, a && b, a || b];' +
+    '  [a + b, a - b, a * b, a / b, a % b, a & b, a | b, a ^ b, a << b, a >> b];' +
+    '  [a = b, a += b, a -= b, a *= b, a /= b, a %= b, a &= b, a |= b, a ^= b, a <<= b, a >>= b];' +
     '}',
 
     'function test(a, b) {\n' +
@@ -81,6 +85,13 @@ it('emitter: general', function() {
     '    return a;\n' +
     '  else\n' +
     '    debugger;\n' +
+    '  try {\n' +
+    '    a;\n' +
+    '  } catch (e) {\n' +
+    '    e;\n' +
+    '  } finally {\n' +
+    '    b;\n' +
+    '  }\n' +
     '  while (true)\n' +
     '    break;\n' +
     '  for (;;)\n' +
@@ -112,6 +123,9 @@ it('emitter: general', function() {
     'if(a)throw new Error();' +
     'else if(b)return a;' +
     'else debugger;' +
+    'try{a}' +
+    'catch(e){e}' +
+    'finally{b}' +
     'while(!0)break;' +
     'for(;;)break;' +
     'var i=0,j=1;' +

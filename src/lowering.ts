@@ -116,6 +116,23 @@ export function lower(program: ts.Program): LoweringResult {
         return Node.createReturn(expression != null ? visit(expression) : Node.createUndefined());
       }
 
+      case SyntaxKind.TryStatement: {
+        let tryBlock = (node as ts.TryStatement).tryBlock;
+        let catchClause = (node as ts.TryStatement).catchClause;
+        let finallyBlock = (node as ts.TryStatement).finallyBlock;
+        return Node.createTry(
+          visit(tryBlock),
+          catchClause != null ? visit(catchClause) : Node.createEmpty(),
+          finallyBlock != null ? visit(finallyBlock) : Node.createEmpty()
+        );
+      }
+
+      case SyntaxKind.CatchClause: {
+        let variableDeclaration = (node as ts.CatchClause).variableDeclaration;
+        let block = (node as ts.CatchClause).block;
+        return Node.createCatch(symbolForIdentifier(variableDeclaration.name), visit(block));
+      }
+
       case SyntaxKind.DoStatement: {
         return Node.createDoWhile(visit((node as ts.DoStatement).statement), visit((node as ts.DoStatement).expression));
       }

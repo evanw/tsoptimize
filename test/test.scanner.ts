@@ -9,6 +9,7 @@ import * as mangler from '../src/mangler';
 
 function check(input: string, expected: string): void {
   let program = helpers.createProgram({'input.ts': input}, {
+    allowUnreachableCode: true,
     noImplicitAny: true,
   });
 

@@ -369,6 +369,58 @@ export function mangle(node: Node, knownSymbols: KnownSymbols): void {
       break;
     }
 
+    case Kind.Try: {
+      let tryBlock = node.tryBlock();
+      let tryCatch = node.tryCatch();
+      let tryFinally = node.tryFinally();
+
+      // Remove catch blocks that just rethrow
+      //
+      //   "try { a; } catch (e) { throw e; }" => "try { a; }"
+      //   "try { a; } catch (e) { throw e; } finally { b; }" => "try { a; } finally { b; }"
+      //
+      if (!tryCatch.isEmpty()) {
+        let catchBlock = tryCatch.catchBlock();
+        if (catchBlock.hasOneChild()) {
+          let statement = catchBlock.firstChild();
+          if (statement.kind() === Kind.Throw &&
+              statement.throwValue().kind() === Kind.Identifier &&
+              statement.throwValue().identifierSymbol() === tryCatch.catchSymbol()) {
+            tryCatch.becomeEmpty();
+          }
+        }
+      }
+
+      // Remove empty finally blocks
+      //
+      //   "try { a; } finally {}" => "try { a; }"
+      //   "try { a; } catch (e) { b; } finally {}" => "try { a; } catch (e) { b; }"
+      //
+      if (!tryFinally.isEmpty() && !tryFinally.hasChildren()) {
+        tryFinally.becomeEmpty();
+      }
+
+      // Replace everything with the finally block if the try block is empty
+      //
+      //   "try {} catch (e) { a; }" => ";"
+      //   "try {} finally { a; }" => "{ a; }"
+      //   "try {} catch (e) { a; } finally { b; }" => "{ b; }"
+      //
+      if (!tryBlock.hasChildren()) {
+        node.become(tryFinally.remove());
+      }
+
+      // Remove the "try" if there is no "catch" or "finally"
+      //
+      //   "try { a; }" => "{ a; }"
+      //
+      else if (tryCatch.isEmpty() && tryFinally.isEmpty()) {
+        node.become(tryBlock.remove());
+      }
+
+      break;
+    }
+
     case Kind.Expression: {
       let value = node.expressionValue();
 
