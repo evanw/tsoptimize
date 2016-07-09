@@ -206,8 +206,49 @@ export function emit(root: Node, mode: Emit): string {
     }
   }
 
+  function emitCaseBody(child: Node): void {
+    out += ':';
+
+    if (child !== null && child.nextSibling() === null && child.kind() === Kind.Block) {
+      out += space;
+      emitBlock(child);
+      out += newline;
+    }
+
+    else {
+      out += newline;
+      increaseIndent();
+
+      while (child !== null) {
+        emitSemicolonIfNeeded();
+        emit(child, Level.Lowest);
+        child = child.nextSibling();
+      }
+
+      decreaseIndent();
+    }
+  }
+
   function emit(node: Node, level: Level): void {
     switch (node.kind()) {
+      case Kind.Case: {
+        let value = node.caseValue();
+        out += indent;
+        emitSpaceBeforeIdentifier();
+        out += 'case' + space;
+        emit(value, Level.Lowest);
+        emitCaseBody(value.nextSibling());
+        break;
+      }
+
+      case Kind.Default: {
+        out += indent;
+        emitSpaceBeforeIdentifier();
+        out += 'default';
+        emitCaseBody(node.firstChild());
+        break;
+      }
+
       case Kind.Module: {
         for (let child = node.firstChild(); child !== null; child = child.nextSibling()) {
           emitSemicolonIfNeeded();
@@ -430,6 +471,24 @@ export function emit(root: Node, mode: Emit): string {
           emit(value, Level.Lowest);
         }
         emitSemicolonAfterStatement();
+        break;
+      }
+
+      case Kind.Switch: {
+        let value = node.switchValue();
+        out += indent;
+        emitSpaceBeforeIdentifier();
+        out += 'switch' + space + '(';
+        emit(value, Level.Lowest);
+        out += ')' + space + '{' + newline;
+        increaseIndent();
+        for (let child = value.nextSibling(); child !== null; child = child.nextSibling()) {
+          emitSemicolonIfNeeded();
+          emit(child, Level.Lowest);
+        }
+        decreaseIndent();
+        out += indent + '}' + newline;
+        needsSemicolon = false;
         break;
       }
 

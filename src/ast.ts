@@ -9,7 +9,9 @@ function equalOrBothNaN(left: number, right: number): boolean {
 }
 
 export enum Kind {
+  Case,
   Catch,
+  Default,
   Module,
   Property,
   Variable,
@@ -29,6 +31,7 @@ export enum Kind {
   Label,
   Namespace,
   Return,
+  Switch,
   Throw,
   Try,
   Variables,
@@ -383,6 +386,15 @@ export class Node {
   ////////////////////////////////////////////////////////////////////////////////
   // Constructors
 
+  static createCase(value: Node): Node {
+    assert(Kind.isExpression(value._kind));
+    return new Node(Kind.Case).appendChild(value);
+  }
+
+  static createDefault(): Node {
+    return new Node(Kind.Default);
+  }
+
   static createVariable(symbol: Symbol, value: Node): Node {
     assert(symbol !== null);
     assert(Kind.isExpression(value._kind));
@@ -465,6 +477,11 @@ export class Node {
   static createReturn(value: Node): Node {
     assert(Kind.isExpression(value._kind));
     return new Node(Kind.Return).appendChild(value);
+  }
+
+  static createSwitch(value: Node): Node {
+    assert(Kind.isExpression(value._kind));
+    return new Node(Kind.Switch).appendChild(value);
   }
 
   static createThrow(value: Node): Node {
@@ -699,6 +716,20 @@ export class Node {
     assert(this._kind === Kind.Continue);
     assert(this.childCount() === 0);
     return this._symbolValue;
+  }
+
+  caseValue(): Node {
+    assert(this._kind === Kind.Case);
+    assert(this.childCount() >= 1);
+    assert(Kind.isExpression(this._firstChild._kind));
+    return this._firstChild;
+  }
+
+  switchValue(): Node {
+    assert(this._kind === Kind.Switch);
+    assert(this.childCount() >= 1);
+    assert(Kind.isExpression(this._firstChild._kind));
+    return this._firstChild;
   }
 
   throwValue(): Node {

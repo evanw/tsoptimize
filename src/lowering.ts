@@ -133,6 +133,30 @@ export function lower(program: ts.Program): LoweringResult {
         return Node.createCatch(symbolForIdentifier(variableDeclaration.name), visit(block));
       }
 
+      case SyntaxKind.SwitchStatement: {
+        let result = Node.createSwitch(visit((node as ts.SwitchStatement).expression));
+        for (let clause of (node as ts.SwitchStatement).caseBlock.clauses) {
+          result.appendChild(visit(clause));
+        }
+        return result;
+      }
+
+      case SyntaxKind.CaseClause: {
+        let result = Node.createCase(visit((node as ts.CaseClause).expression));
+        for (let statement of (node as ts.CaseClause).statements) {
+          result.appendChild(visit(statement));
+        }
+        return result;
+      }
+
+      case SyntaxKind.DefaultClause: {
+        let result = Node.createDefault();
+        for (let statement of (node as ts.DefaultClause).statements) {
+          result.appendChild(visit(statement));
+        }
+        return result;
+      }
+
       case SyntaxKind.DoStatement: {
         return Node.createDoWhile(visit((node as ts.DoStatement).statement), visit((node as ts.DoStatement).expression));
       }

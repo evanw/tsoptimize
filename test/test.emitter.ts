@@ -44,6 +44,11 @@ it('emitter: general', function() {
     '  try { a; }' +
     '  catch (e) { e; }' +
     '  finally { b; }' +
+    '  switch (a) {' +
+    '    case 0: 0; break;' +
+    '    case 1: case 2: { 12; break; }' +
+    '    default: 3; break;' +
+    '  }' +
     '  while (true) break;' +
     '  for (;;) break;' +
     '  var i = 0, j = 1;' +
@@ -92,6 +97,19 @@ it('emitter: general', function() {
     '  } finally {\n' +
     '    b;\n' +
     '  }\n' +
+    '  switch (a) {\n' +
+    '    case 0:\n' +
+    '      0;\n' +
+    '      break;\n' +
+    '    case 1:\n' +
+    '    case 2: {\n' +
+    '      12;\n' +
+    '      break;\n' +
+    '    }\n' +
+    '    default:\n' +
+    '      3;\n' +
+    '      break;\n' +
+    '  }\n' +
     '  while (true)\n' +
     '    break;\n' +
     '  for (;;)\n' +
@@ -126,6 +144,7 @@ it('emitter: general', function() {
     'try{a}' +
     'catch(e){e}' +
     'finally{b}' +
+    'switch(a){case 0:0;break;case 1:case 2:{12;break}default:3;break}' +
     'while(!0)break;' +
     'for(;;)break;' +
     'var i=0,j=1;' +

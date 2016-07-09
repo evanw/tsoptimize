@@ -149,6 +149,8 @@ it('mangler: Math.pow', function() {
 
   check(
     'this(3 ** 4);' +
+    'this(3 ** this());' +
+    'this(this() ** 4);' +
     'this(Math.pow(3, 4));' +
     'this((0, Math).pow(3, 4));' +
     'this(Math.pow(3, this()));' +
@@ -157,6 +159,8 @@ it('mangler: Math.pow', function() {
     'function foo(Math: any) { return Math.pow(3, 4); }',
 
     'this(81), ' +
+    'this(Math.pow(3, this())), ' +
+    'this(Math.pow(this(), 4)), ' +
     'this(81), ' +
     'this(81), ' +
     'this(Math.pow(3, this())), ' +
